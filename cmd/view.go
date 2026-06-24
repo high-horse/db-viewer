@@ -14,13 +14,7 @@ func (m AppStateModel) View() tea.View {
 	switch m.state {
 
 	case Auth:
-		return tea.NewView(
-			"Login\n\n" +
-				m.email.View() + "\n" +
-				m.password.View() + "\n\n" +
-				textDanger.Render(m.authErrMsg) + "\n\n" +
-				"Tab to switch • Enter to login",
-		)
+		return tea.NewView(renderAuth(m))
 
 	case ConnList:
 		return tea.NewView(renderConnections(m))
@@ -39,6 +33,14 @@ func (m AppStateModel) View() tea.View {
 	}
 }
 
+func renderAuth(m AppStateModel) string {
+	fullWidthTitle := sectionTitle.Width(m.width-10).Render("Login")
+	return fullWidthTitle + "\n\n" +
+		m.email.View() + "\n" +
+		m.password.View() + "\n\n" +
+		textDanger.Render(m.authErrMsg) + "\n\n" +
+		"Tab to switch • Enter to login"
+}
 
 
 func renderConnections(m AppStateModel) string {

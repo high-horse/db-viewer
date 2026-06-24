@@ -16,3 +16,6 @@ var box = lipgloss.NewStyle().
 
 var textDanger = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
 
+var sectionTitle = lipgloss.NewStyle().
+    Foreground(lipgloss.Color("#b989f7")). // Removed 'ff'
+    Background(lipgloss.Color("#7D56F4")) 
