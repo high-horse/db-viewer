@@ -33,14 +33,15 @@ type AppStateModel struct {
 	state State
 
 	// auth
-	email    textinput.Model
-	password textinput.Model
+	email      textinput.Model
+	password   textinput.Model
 	authErrMsg string
-	focus    int // 0=email, 1=password
+	focus      int // 0=email, 1=password
 
 	connections  []types.Connection
 	selectedConn int
 	currentConn  *types.Connection
+	connForm     ConnectionForm
 
 	tables        []string
 	tableCursor   int
@@ -68,12 +69,24 @@ func initAppStateModel() AppStateModel {
 	password.EchoCharacter = '•'
 	password.SetWidth(30)
 	return AppStateModel{
-		state: Auth,
-		email: email,
+		state:    Auth,
+		email:    email,
 		password: password,
+
+		connForm: newConnectionForm(),
 	}
 }
 
 func (m AppStateModel) Init() tea.Cmd {
 	return nil
+}
+
+type ConnectionFormSubmitMsg struct {
+	Name     string
+	Driver   string
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
 }

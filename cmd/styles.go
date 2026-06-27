@@ -11,7 +11,7 @@ var box = lipgloss.NewStyle().
 	Background(lipgloss.Color("#7D56F4")).
 	Padding(1, 2).
 	// Width(40).
-	Align(lipgloss.Center)
+	Align(lipgloss.Left)
 
 
 var textDanger = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
