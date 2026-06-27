@@ -24,6 +24,7 @@ func loadConnectionsCmd() tea.Cmd {
 	}
 }
 
+
 func saveConnectionCmd(conn ConnectionFormSubmitMsg) tea.Cmd {
 	return func() tea.Msg {
 		connection := types.Connection{
