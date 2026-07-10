@@ -75,13 +75,13 @@ func renderConnectionForm(m AppStateModel) string {
 	s := "New Connection\n\n"
 
 	// %-10s left-aligns each label in a 10-character field
-	s += fmt.Sprintf("%-10s", "Alias Name") + f.name.View() + "\n"
-	s += fmt.Sprintf("%-10s", "Driver") + f.driver.View() + "\n"
-	s += fmt.Sprintf("%-10s", "Host") + f.host.View() + "\n"
-	s += fmt.Sprintf("%-10s", "Port") + f.port.View() + "\n"
-	s += fmt.Sprintf("%-10s", "UserName") + f.user.View() + "\n"
-	s += fmt.Sprintf("%-10s", "Password") + f.password.View() + "\n"
-	s += fmt.Sprintf("%-10s", "Database") + f.dbname.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Alias Name") + f.name.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Driver") + f.driver.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Host") + f.host.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Port") + f.port.View() + "\n"
+	s += fmt.Sprintf("%-12s", "UserName") + f.user.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Password") + f.password.View() + "\n"
+	s += fmt.Sprintf("%-12s", "Database") + f.dbname.View() + "\n"
 
 	s += "\nTab: next • Shift+Tab: previous • Enter: save"
 
