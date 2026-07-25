@@ -87,6 +87,9 @@ func(c *Connection) Connect(ctx context.Context) error {
 }
 
 func(c *Connection) Disconnect() error {
+	if !c.connected {
+		return nil
+	}
 	if c.db == nil {
 		return nil
 	}
@@ -98,6 +101,10 @@ func(c *Connection) Disconnect() error {
 
 func (c *Connection) Ping(ctx context.Context) error {
 
+	if !c.connected {
+		return fmt.Errorf("not connected")
+	}
+	
 	if c.db == nil {
 		return fmt.Errorf("mysql connection not initialized")
 	}

@@ -26,5 +26,6 @@ func(d *Direct) Close() error {
 }
 
 func(d *Direct) Address() string {
+	return "localfs"
 	return fmt.Sprintf("%s:%d", d.host, d.port)
 }

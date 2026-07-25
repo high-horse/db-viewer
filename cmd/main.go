@@ -6,6 +6,7 @@ import (
 	manager "db-viewer/internal/engine/connectionManager"
 	"db-viewer/internal/engine/drivers/mysql"
 	"db-viewer/internal/engine/drivers/postgres"
+	"db-viewer/internal/engine/drivers/sqlite"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/factory"
 	"db-viewer/internal/engine/transports"
@@ -16,21 +17,91 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func main() {
+var driverFactory *factory.Factory
+
+func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	log.Println("This log includes the line number!")
+	driverFactory = factory.New()
 
-	log.Println("starting ...")
-	log.Println("inint factory")
-	factory := factory.New()
-	log.Println("registring driver to factory mysql")
-
-	factory.Register(mysql.NewDriver())
+	driverFactory.Register(mysql.NewDriver())
 	log.Println("registring driver to factory pgx")
 
-	factory.Register(postgres.NewDriver())
+	driverFactory.Register(postgres.NewDriver())
 	log.Println("drivers registered")
+
+	driverFactory.Register(sqlite.NewDriver())
+	log.Println("registring driver to factory sqlite")
+}
+
+func main() {
+
+	log.Println("registring driver to factory mysql")
+	runSQLite()
+}
+
+func runSQLite() {
+	manager := manager.NewConnectionManager()
+	config := entities.ConnectionConfig{
+		ID:       "local",
+		Name:     "Local SQLite",
+		Type:     "sqlite",
+		Host:     "",
+		Port:     0,
+		User:     "",
+		Password: "",
+		Database: "/home/camel/Desktop/go/chaarm/db-viewer/static/app.db",
+		SSL:      false,
+		InMemory: false,
+		ReadOnly: false,
+	}
+
+	transport := transports.NewDirect(config.Host, config.Port)
+
+	conn, err := driverFactory.Create(context.Background(), config, transport)
+	if err != nil {
+		log.Fatal("error ", err)
+	}
+	manager.Add(conn)
+	log.Println("conn status", conn.IsConnected(), conn.Name())
+
+	if err := conn.Connect(context.Background()); err != nil {
+		log.Fatal("connection failed:", err)
+	}
+	defer conn.Disconnect()
+
+	log.Println("connection status", conn.IsConnected(), conn.Name())
+	driver, err := driverFactory.Driver(conn.Type())
+	if err != nil {
+		log.Fatal("driver error:", err)
+	}
+	log.Println("driver", driver.Name())
+
+	databases, err := driver.Inspector().ListDatabases(context.Background(), conn)
+	if err != nil {
+		log.Fatal("list databases error:", err)
+	}
+	log.Println("databases", databases)
+
+	tables, err := driver.Inspector().ListTables(context.Background(), conn)
+	if err != nil {
+		log.Fatal("list tables error:", err)
+	}
+	for _, table := range tables {
+		log.Println("tables", table.Name)
+	}
+
+	columns, err := driver.Inspector().ListColumns(context.Background(), conn, tables[0].Name)
+	if err != nil {
+		log.Fatal("list columns error:", err)
+	}
+	log.Println("columns count for table", len(columns), tables[0].Name)
+	for _, column := range columns {
+		log.Println("columns ", column.Name)
+	}
+}
+
+func runMysql() {
 
 	manager := manager.NewConnectionManager()
 
@@ -46,7 +117,7 @@ func main() {
 	}
 	transport := transports.NewDirect(config.Host, config.Port)
 
-	conn, err := factory.Create(context.TODO(), config, transport)
+	conn, err := driverFactory.Create(context.TODO(), config, transport)
 	if err != nil {
 		log.Fatal("error ", err)
 	}
@@ -57,8 +128,7 @@ func main() {
 	}
 	log.Println("conn status", conn.IsConnected(), conn.Name())
 
-
-	driver, err := factory.Driver(conn.Type())
+	driver, err := driverFactory.Driver(conn.Type())
 	if err != nil {
 		log.Fatal("executor selection failed:", err)
 	}
@@ -66,22 +136,21 @@ func main() {
 	exec := driver.Executor()
 
 	query := `
-		SELECT
-			e.employeeNumber,
-			CONCAT(e.firstName, ' ', e.lastName) AS employee_name,
-			o.city,
-			COALESCE(o.phone, 'No phone') AS office_phone
-		FROM employees e
-		LEFT JOIN offices o
-			ON e.officeCode = o.officeCode
-		ORDER BY employee_name;
-	`
+			SELECT
+				e.employeeNumber,
+				CONCAT(e.firstName, ' ', e.lastName) AS employee_name,
+				o.city,
+				COALESCE(o.phone, 'No phone') AS office_phone
+			FROM employees e
+			LEFT JOIN offices o
+				ON e.officeCode = o.officeCode
+			ORDER BY employee_name;
+		`
 	result, err := exec.Execute(
 		context.Background(),
 		conn,
 		query,
 	)
-
 
 	if err != nil {
 		log.Fatal("query execution failed:", err)
@@ -105,6 +174,12 @@ func main() {
 
 	inspect := driver.Inspector()
 
+	dbs, err := inspect.ListDatabases(context.Background(), conn)
+	if err != nil {
+		fmt.Println("err while listing datase")
+	}
+	fmt.Println("datanases len and names", len(dbs), dbs)
+
 	tables, err := inspect.ListTables(context.Background(), conn)
 	if err != nil {
 		fmt.Println("error in insptect tables", err)
@@ -120,9 +195,6 @@ func main() {
 	fmt.Println("columns:", cols)
 
 }
-
-
-
 
 func main_old() {
 	_, err := db.InitDb()

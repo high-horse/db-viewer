@@ -170,9 +170,11 @@ func (e *Executor) runQuery(ctx context.Context, db *sql.DB, query string, start
 
 	columns := make([]entities.ColumnInfo, len(colTypes))
 	for i, ct := range colTypes {
+		nullable, hasNullable := ct.Nullable()
 		columns[i] = entities.ColumnInfo{
 			Name:         ct.Name(),
 			DatabaseType: ct.DatabaseTypeName(),
+			Nullable:     nullable && hasNullable,
 		}
 	}
 

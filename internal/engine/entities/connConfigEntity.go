@@ -13,4 +13,8 @@ type ConnectionConfig struct {
 	Database string
 
 	SSL bool
+
+	InMemory bool // in case of in-memory database
+	ReadOnly bool
+	
 }
