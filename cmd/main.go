@@ -101,17 +101,25 @@ func runPostgres() {
 		log.Println("columns ", column.Name)
 	}
 
-	q := `
-		select * from actor where first_name like "%Joe%;
-	`
+	query := `select * from actor where first_name like '%Joe%';`
 
-	result, err := driver.Executor().Execute(context.Background(), conn, q)
+	exec := driver.Executor()
+	result, err := exec.Execute(
+		context.Background(),
+		conn,
+		query,
+	)
+
 	if err != nil {
-		log.Fatal("err executing", err)
+		log.Fatal("query execution failed:", err)
 	}
+
 	log.Println("Query executed successfully")
 	log.Println("Duration:", result.Duration)
 	log.Println("Rows affected:", result.RowsAffected)
+	log.Println("columns ", result.Columns)
+	log.Println("rows ", result.Rows)
+
 }
 
 func runSQLite() {
