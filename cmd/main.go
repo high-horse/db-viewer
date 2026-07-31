@@ -95,11 +95,23 @@ func runPostgres() {
 	if err != nil {
 		log.Fatal("list columns error:", err)
 	}
-	
+
 	log.Println("columns count for table", len(columns), tables[0].Name)
 	for _, column := range columns {
 		log.Println("columns ", column.Name)
 	}
+
+	q := `
+		select * from actor where first_name like "%Joe%;
+	`
+
+	result, err := driver.Executor().Execute(context.Background(), conn, q)
+	if err != nil {
+		log.Fatal("err executing", err)
+	}
+	log.Println("Query executed successfully")
+	log.Println("Duration:", result.Duration)
+	log.Println("Rows affected:", result.RowsAffected)
 }
 
 func runSQLite() {
