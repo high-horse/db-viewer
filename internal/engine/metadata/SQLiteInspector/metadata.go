@@ -83,13 +83,13 @@ func (s *SQLiteInspector) ListTables(ctx context.Context, conn manager.Connectio
 	return tables, nil
 }
 
-func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connection, tableName string) ([]entities.InspectColumnInfo, error) {
+func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connection, table entities.InspectTableInfo) ([]entities.InspectColumnInfo, error) {
 	sqlConn, ok := conn.(manager.SQLConnection)
 	if !ok {
 		return nil, fmt.Errorf("connection is not a SQL connection")
 	}
 
-	query := fmt.Sprintf("PRAGMA table_info(%s)", tableName)
+	query := fmt.Sprintf("PRAGMA table_info(%s)", table.Name)
 	rows, err := sqlConn.DB().QueryContext(ctx, query)
 	if err != nil {
 		return nil, err

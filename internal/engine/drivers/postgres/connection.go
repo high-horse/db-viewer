@@ -44,7 +44,7 @@ func(c *Connection) DatabaseName() string {
 }
 
 func(c *Connection) Type() string {
-	return "postgres"
+	return "pgx"
 }
 
 func(c *Connection) DB() *sql.DB {
@@ -52,20 +52,28 @@ func(c *Connection) DB() *sql.DB {
 }
 
 func (c *Connection) dsn() string {
+	// Fallback to config details if transport provides a non-standard network address
+	host := c.transport.Address()
+	if host == "localfs" || host == "" {
+		host = c.config.Host
+	}
+
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s",
-		c.transport.Address(),
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		host,
+		c.config.Port,
 		c.config.User,
 		c.config.Password,
 		c.config.Database,
 	)
 }
 
+
 func(c *Connection) Connect(ctx context.Context) error {
-	log.Println("conneccting to postgres pgx")
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
 	}
+	log.Println("conneccting to postgres pgx with dsn ", c.dsn())
 
 	db, err := sql.Open("pgx", c.dsn())
 	if err != nil {

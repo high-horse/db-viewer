@@ -5,7 +5,9 @@ import (
 	manager "db-viewer/internal/engine/connectionManager"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/metadata"
+	pgxInspector "db-viewer/internal/engine/metadata/postgres"
 	queryexecutor "db-viewer/internal/engine/queryExecutor"
+	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
 	"db-viewer/internal/engine/transports"
 )
 
@@ -26,11 +28,11 @@ func (d *Driver) Create(ctx context.Context, config entities.ConnectionConfig, t
 }
 
 func (d *Driver) Executor() queryexecutor.Executor {
-	return nil
+	return sqlExecutor.New()
 }
 
 func (d *Driver) Inspector() metadata.Inspector {
-	return nil
+	return pgxInspector.NewInspector()
 }
 
 

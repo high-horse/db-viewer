@@ -37,7 +37,69 @@ func init() {
 func main() {
 
 	log.Println("registring driver to factory mysql")
-	runSQLite()
+	runPostgres()
+}
+
+func runPostgres() {
+	manager := manager.NewConnectionManager()
+	config := entities.ConnectionConfig{
+		ID:       "postgres_local",
+		Name:     "dvdrental",
+		Type:     "pgx",
+		Host:     "localhost",
+		Port:     5432,
+		User:     "postgres",      // Added default administrative user
+		Password: "your_password", // Replace with your actual postgres user password
+		Database: "dvdrental",
+		SSL:      false, // pgx translates false to sslmode=disable
+		InMemory: false,
+		ReadOnly: false,
+	}
+
+	transport := transports.NewDirect(config.Host, config.Port)
+
+	conn, err := driverFactory.Create(context.Background(), config, transport)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	manager.Add(conn)
+	log.Println("conn status", conn.IsConnected(), conn.Name())
+
+	if err := conn.Connect(context.Background()); err != nil {
+		log.Fatal("connection failed:", err)
+	}
+	defer conn.Disconnect()
+
+	log.Println("conn status", conn.IsConnected(), conn.Name())
+	driver, err := driverFactory.Driver(conn.Type())
+	if err != nil {
+		log.Fatal("driver error ", err)
+	}
+	log.Println("driver", driver.Name())
+
+	databases, err := driver.Inspector().ListDatabases(context.Background(), conn)
+	if err != nil {
+		log.Fatal("list databases err ", err)
+	}
+	log.Println("Databases ", databases)
+
+	tables, err := driver.Inspector().ListTables(context.Background(), conn)
+	if err != nil {
+		log.Fatal("tables list err", err)
+	}
+	for _, table := range tables {
+		log.Println("tables", table.Name)
+	}
+
+	columns, err := driver.Inspector().ListColumns(context.Background(), conn, tables[0])
+	if err != nil {
+		log.Fatal("list columns error:", err)
+	}
+	
+	log.Println("columns count for table", len(columns), tables[0].Name)
+	for _, column := range columns {
+		log.Println("columns ", column.Name)
+	}
 }
 
 func runSQLite() {
@@ -91,7 +153,7 @@ func runSQLite() {
 		log.Println("tables", table.Name)
 	}
 
-	columns, err := driver.Inspector().ListColumns(context.Background(), conn, tables[0].Name)
+	columns, err := driver.Inspector().ListColumns(context.Background(), conn, tables[0])
 	if err != nil {
 		log.Fatal("list columns error:", err)
 	}
@@ -187,7 +249,7 @@ func runMysql() {
 
 	fmt.Println("tables count ", len(tables))
 
-	cols, err := inspect.ListColumns(context.Background(), conn, "customers")
+	cols, err := inspect.ListColumns(context.Background(), conn, tables[0])
 	if err != nil {
 		fmt.Println("error in inspect columns", err)
 	}

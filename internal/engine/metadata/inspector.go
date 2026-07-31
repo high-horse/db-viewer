@@ -12,7 +12,7 @@ type Inspector interface {
 
 	ListTables(ctx context.Context, conn manager.Connection)([]entities.InspectTableInfo, error)
 
-	ListColumns (ctx context.Context, conn manager.Connection, table string) ([]entities.InspectColumnInfo, error)
+	ListColumns (ctx context.Context, conn manager.Connection, table entities.InspectTableInfo) ([]entities.InspectColumnInfo, error)
 
 	// TODO: for later
 	// ListIndexes()

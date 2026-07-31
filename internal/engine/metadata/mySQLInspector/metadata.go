@@ -130,7 +130,7 @@ func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection
 func (i *MySQLInspector) ListColumns(
 	ctx context.Context,
 	conn manager.Connection,
-	table string,
+	table entities.InspectTableInfo,
 ) ([]entities.InspectColumnInfo, error) {
 
 	sqlConn, ok := conn.(manager.SQLConnection)
@@ -157,7 +157,7 @@ func (i *MySQLInspector) ListColumns(
 		ctx,
 		query,
 		database,
-		table,
+		table.Name,
 	)
 
 	if err != nil {
