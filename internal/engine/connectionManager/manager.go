@@ -91,8 +91,8 @@ func(m *ConnectionManager)Get(id string)(Connection, bool) {
 }
 
 func (m *ConnectionManager)Remove(id string) error{
-	m.rw.RLock()
-	defer m.rw.RUnlock()
+	m.rw.Lock()
+	defer m.rw.Unlock()
 
 	conn, ok := m.connections[id]
 	if !ok {
@@ -121,8 +121,8 @@ func (m *ConnectionManager)List() []Connection {
 }
 
 func (m *ConnectionManager) CloseAll() error {
-	m.rw.RLock()
-	defer m.rw.RUnlock()
+	m.rw.Lock()
+	defer m.rw.Unlock()
 
 	for id, conn := range m.connections {
 		_ = conn.Disconnect()

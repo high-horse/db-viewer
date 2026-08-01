@@ -11,10 +11,16 @@ import (
 	"db-viewer/internal/engine/transports"
 )
 
-type Driver struct{}
+type Driver struct{
+	executor  queryexecutor.Executor
+	inspector metadata.Inspector
+}
 
 func NewDriver() *Driver {
-	return &Driver{}
+	return &Driver{
+		executor:  sqlExecutor.New(),
+		inspector: pgxInspector.NewInspector(),
+	}
 }
 
 func (d *Driver) Name() string {
@@ -28,11 +34,11 @@ func (d *Driver) Create(ctx context.Context, config entities.ConnectionConfig, t
 }
 
 func (d *Driver) Executor() queryexecutor.Executor {
-	return sqlExecutor.New()
+	return d.executor
 }
 
 func (d *Driver) Inspector() metadata.Inspector {
-	return pgxInspector.NewInspector()
+	return d.inspector
 }
 
 

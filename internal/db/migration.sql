@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT
 );
 
+CREATE TABLE IF NOT EXISTS query_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    connection_id TEXT NOT NULL,
+    database_name TEXT NOT NULL,
+    query_text TEXT NOT NULL,
+    executed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    duration_ms INTEGER NOT NULL,
+    status TEXT NOT NULL -- 'SUCCESS' or 'ERROR'
+);
 -- INSERT INTO connections (name, driver, host, port, user, password, dbname)
 -- VALUES
 --     ('Local SQLite', 'sqlite', '', NULL, '', '', 'app.db'),

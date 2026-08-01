@@ -6,16 +6,23 @@ import (
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/metadata"
 	"db-viewer/internal/engine/metadata/mySQLInspector"
-	
+
 	queryexecutor "db-viewer/internal/engine/queryExecutor"
 	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
 	"db-viewer/internal/engine/transports"
 )
 
-type Driver struct{}
+type Driver struct {
+	executor  queryexecutor.Executor
+	inspector metadata.Inspector
+}
 
 func NewDriver() *Driver {
-	return &Driver{}
+	return &Driver{
+		// Instantiate once during driver creation
+		executor:  sqlExecutor.New(),
+		inspector: mySQLInspector.NewInspector(),
+	}
 }
 
 func (d *Driver) Name() string {
@@ -29,10 +36,9 @@ func (d *Driver) Create(ctx context.Context, config entities.ConnectionConfig, t
 }
 
 func (d *Driver) Executor() queryexecutor.Executor {
-	return sqlExecutor.New()
+	return d.executor
 }
 
 func (d *Driver) Inspector() metadata.Inspector {
-	return mySQLInspector.NewInspector()
+	return d.inspector
 }
-
