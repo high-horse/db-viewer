@@ -24,6 +24,22 @@ CREATE TABLE IF NOT EXISTS query_history (
     duration_ms INTEGER NOT NULL,
     status TEXT NOT NULL -- 'SUCCESS' or 'ERROR'
 );
+
+
+INSERT INTO connections (
+    name, driver, host, port, user, password, dbname
+)
+VALUES
+(
+    'Local SQLite', 'sqlite', '', NULL, '', '','/home/camel/Desktop/go/chaarm/db-viewer/static/app.db'
+),
+(
+    'dvdrental', 'pgx', 'localhost', 5432, 'postgres', 'your_password', 'dvdrental'
+),
+(
+    'Local MySQL', 'mysql', '127.0.0.1', 3306, 'app_user', 'strong_password', 'app_database'
+);
+
 -- INSERT INTO connections (name, driver, host, port, user, password, dbname)
 -- VALUES
 --     ('Local SQLite', 'sqlite', '', NULL, '', '', 'app.db'),
