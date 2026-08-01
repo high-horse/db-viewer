@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=db-viewer
+Exec=db-viewer
+Icon=db-viewer
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false

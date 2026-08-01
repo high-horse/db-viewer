@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=My Product
+Comment=A db-viewer application
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/db-viewer %u
+Terminal=false
+Type=Application
+Icon=db-viewer
+Categories=Utility;
+StartupWMClass=db-viewer
+
+ 
