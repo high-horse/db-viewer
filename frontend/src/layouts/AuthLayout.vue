@@ -1,11 +1,11 @@
 <template>
-    <div class="h-screen flex flex-col bg-[#070a12]">
+    <div class="h-screen flex flex-col bg-[#0c0b09]">
         <!-- Top Navbar -->
         <header
-            class="h-14 flex items-center justify-between px-5 border-b border-[#1f2937] bg-[#111827]"
+            class="h-14 flex items-center justify-between px-5 border-b border-[#292521] bg-[#161310]"
         >
             <div class="flex items-center gap-3">
-                <q-icon name="storage" size="22px" class="text-indigo-400" />
+                <q-icon name="storage" size="22px" class="text-amber-400" />
 
                 <div>
                     <div class="text-sm font-bold text-white">DB Viewer</div>
@@ -18,7 +18,8 @@
             <q-btn
                 unelevated
                 rounded
-                color="indigo"
+                color="amber"
+                text-color="black"
                 icon="add"
                 label="New Connection"
                 class="text-xs font-bold text-capitalize"
@@ -29,20 +30,20 @@
         <!-- Main Area -->
         <div class="flex flex-1 overflow-hidden">
             <!-- Left Connections Panel -->
-            <aside class="w-72 border-r border-[#1f2937] bg-[#0b1220]">
+            <aside class="w-72 border-r border-[#292521] bg-[#100e0c]">
                 <q-scroll-area class="h-full p-3">
                     <div class="space-y-2">
                         <div
                             v-for="connection in connections"
                             :key="connection.id"
-                            class="p-3 rounded-lg border border-[#1f2937] bg-[#111827]/60 hover:bg-[#1e293b] cursor-pointer transition select-none"
+                            class="p-3 rounded-lg border border-[#292521] bg-[#161310]/60 hover:bg-[#231f1a] cursor-pointer transition select-none"
                             @dblclick="selectConnection(connection)"
                         >
                             <div class="flex items-center gap-2">
                                 <q-icon
                                     name="lan"
                                     size="16px"
-                                    class="text-indigo-400"
+                                    class="text-amber-400"
                                 />
 
                                 <div class="min-w-0">
@@ -116,5 +117,4 @@ watch(activeConnection, (newConnection) => {
         console.log("connection dd",newConnection);
     }
 });
-
 </script>

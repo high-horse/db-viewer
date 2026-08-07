@@ -23,7 +23,7 @@ app.use(pinia)
 const savedPreference = localStorage.getItem("dark-mode")
 const isDark = savedPreference === null ? true : savedPreference === "true"
 
-Dark.set(isDark)
+Dark.set(true)
 
 // CRITICAL FOR TAILWIND: Sync the HTML element class on startup
 document.documentElement.classList.toggle("dark", isDark)

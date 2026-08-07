@@ -1,3 +1,13 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+
+/*@layer utilities {
+    .bg-radial-gradient {
+        background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 100%);
+    }
+    .bg-gradient-to-br {
+        background: linear-gradient(to bottom right, #0f172a, #1e293b);
+    }
+}*/
