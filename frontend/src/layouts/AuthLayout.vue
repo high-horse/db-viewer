@@ -23,7 +23,7 @@
                 icon="add"
                 label="New Connection"
                 class="text-xs font-bold text-capitalize"
-                @click="() => showNewConnectionDialog = true"
+                @click="() => (showNewConnectionDialog = true)"
             />
         </header>
 
@@ -39,45 +39,56 @@
                             class="p-3 rounded-lg border border-[#292521] bg-[#161310]/60 hover:bg-[#231f1a] cursor-pointer transition select-none"
                             @dblclick="selectConnection(connection)"
                         >
-                            <div class="flex items-center gap-2">
-                                <q-icon
-                                    name="lan"
-                                    size="16px"
-                                    class="text-amber-400"
-                                />
+                            <div class="flex justify-between">
+                                <div class="flex items-center gap-2">
+                                    <q-icon
+                                        name="lan"
+                                        size="16px"
+                                        class="text-amber-400"
+                                    />
 
-                                <div class="min-w-0">
-                                    <div
-                                        class="text-sm font-semibold text-white truncate"
-                                    >
-                                        {{ connection.name }}
-                                    </div>
+                                    <div class="min-w-0">
+                                        <div
+                                            class="text-sm font-semibold text-white truncate"
+                                        >
+                                            {{ connection.name }}
+                                        </div>
 
-                                    <div class="text-xs text-gray-400">
-                                        {{ connection.driver }}
-                                    </div>
+                                        <div class="text-xs text-gray-400">
+                                            {{ connection.driver }}
 
-                                    <div
-                                        v-if="connection.host"
-                                        class="text-[11px] text-gray-500 font-mono"
-                                    >
-                                        {{ connection.host }}:{{
-                                            connection.port.Int64
-                                        }}
-                                    </div>
+                                            <span
+                                                v-if="connection.host"
+                                                class="text-[11px] text-gray-500 font-mono"
+                                            >
+                                                {{ connection.host }}:{{
+                                                    connection.port.Int64
+                                                }}
+                                            </span>
+    
+                                            <span
+                                                v-else
+                                                class="text-[11px] text-gray-500 font-mono truncate"
+                                            >
+                                                {{
+                                                    connection.dbname
+                                                        ? connection.dbname
+                                                              .split("/")
+                                                              .pop()
+                                                        : ""
+                                                }}
+                                            </span>
+                                        </div>
 
-                                    <div
-                                        v-else
-                                        class="text-[11px] text-gray-500 font-mono truncate"
-                                    >
-                                        {{
-                                            connection.dbname
-                                                ? connection.dbname
-                                                      .split("/")
-                                                      .pop()
-                                                : ""
-                                        }}
+                                       
                                     </div>
+                                </div>
+                                <div>
+                                    <q-icon
+                                        name="more_vert"
+                                        size="25px"
+                                        class="text-amber-400"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -105,16 +116,17 @@ const router = useRouter();
 
 const store = useConnectionStore();
 
-const { connections, showNewConnectionDialog, activeConnection } = storeToRefs(store);
+const { connections, showNewConnectionDialog, activeConnection } =
+    storeToRefs(store);
 
 function selectConnection(connection: any) {
-  store.setSelectedSession(connection);
-  store.pingConnection();
+    store.setSelectedSession(connection);
+    store.pingConnection();
 }
 
 watch(activeConnection, (newConnection) => {
     if (newConnection) {
-        console.log("connection dd",newConnection);
+        console.log("connection dd", newConnection);
     }
 });
 </script>
