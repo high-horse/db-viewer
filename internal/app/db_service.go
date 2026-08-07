@@ -103,6 +103,51 @@ func (s *DbService) Disconnect(ctx context.Context, connID string) error {
 	return nil
 }
 
+func (s *DbService) PingConnection(ctx context.Context, connID string) (bool, error) {
+	conn, ok := s.manager.Get(connID)
+	if !ok {
+		return false, fmt.Errorf("connection not found")
+	}
+
+	err := conn.Ping(ctx)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *DbService) PingConfig(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
+
+	transport := transports.NewDirect(
+		config.Host,
+		config.Port,
+	)
+
+	conn, err := s.factory.Create(
+		ctx,
+		config,
+		transport,
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	err = conn.Connect(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	defer conn.Disconnect()
+
+	err = conn.Ping(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (s *DbService) GetQueryHistory(
 	ctx context.Context, limit int, since time.Time,
 ) ([]db.QueryHistoryEntity, error) {

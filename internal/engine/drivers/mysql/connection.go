@@ -47,12 +47,29 @@ func(c *Connection) DB() *sql.DB {
 	return  c.db
 }
 
+// func (c *Connection) dsn() string {
+// 	return fmt.Sprintf(
+// 		"%s:%s@tcp(%s)/%s?parseTime=true",
+// 		c.config.User,
+// 		c.config.Password,
+// 		c.transport.Address(),
+// 		c.config.Database,
+// 	)
+// }
+
 func (c *Connection) dsn() string {
+	host := c.config.Host
+
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s)/%s?parseTime=true",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		c.config.User,
 		c.config.Password,
-		c.transport.Address(),
+		host,
+		c.config.Port,
 		c.config.Database,
 	)
 }

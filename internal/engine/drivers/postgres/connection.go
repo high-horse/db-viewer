@@ -12,43 +12,40 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-
 type Connection struct {
 	config entities.ConnectionConfig
 
-	
 	transport transports.Transport
 
-
-	db *sql.DB
+	db        *sql.DB
 	connected bool
 }
 
 func New(config entities.ConnectionConfig, transport transports.Transport) *Connection {
 	return &Connection{
-		config: config,
+		config:    config,
 		transport: transport,
 	}
 }
 
-func(c *Connection) ID() string {
+func (c *Connection) ID() string {
 	return c.config.ID
 }
 
-func(c *Connection) Name() string {
+func (c *Connection) Name() string {
 	return c.config.Name
 }
 
-func(c *Connection) DatabaseName() string {
+func (c *Connection) DatabaseName() string {
 	return c.config.Database
 }
 
-func(c *Connection) Type() string {
+func (c *Connection) Type() string {
 	return "pgx"
 }
 
-func(c *Connection) DB() *sql.DB {
-	return  c.db
+func (c *Connection) DB() *sql.DB {
+	return c.db
 }
 
 func (c *Connection) dsn() string {
@@ -58,6 +55,8 @@ func (c *Connection) dsn() string {
 		host = c.config.Host
 	}
 
+	log.Println("USER:", c.config.User)
+	log.Println("PASSWORD:", c.config.Password)
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		host,
@@ -68,8 +67,7 @@ func (c *Connection) dsn() string {
 	)
 }
 
-
-func(c *Connection) Connect(ctx context.Context) error {
+func (c *Connection) Connect(ctx context.Context) error {
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
 	}
@@ -91,7 +89,7 @@ func(c *Connection) Connect(ctx context.Context) error {
 	return nil
 }
 
-func(c *Connection) Disconnect() error {
+func (c *Connection) Disconnect() error {
 	if c.db == nil {
 		return nil
 	}
@@ -101,7 +99,7 @@ func(c *Connection) Disconnect() error {
 	return err
 }
 
-func(c *Connection) Ping(ctx context.Context) error  {
+func (c *Connection) Ping(ctx context.Context) error {
 	if c.db == nil {
 		return fmt.Errorf("postgres connection not initialized")
 	}
@@ -109,6 +107,6 @@ func(c *Connection) Ping(ctx context.Context) error  {
 	return c.db.PingContext(ctx)
 }
 
-func(c *Connection) IsConnected() bool {
+func (c *Connection) IsConnected() bool {
 	return c.connected
 }

@@ -31,3 +31,11 @@ export function GetQueryHistory(limit: number, since: string): $CancellablePromi
 export function InspectDatabase(connID: string): $CancellablePromise<entities$0.InspectTableInfo[] | null> {
     return $Call.ByID(2574358800, connID);
 }
+
+export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
+    return $Call.ByID(2383367173, config);
+}
+
+export function PingConnection(connID: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1640356639, connID);
+}

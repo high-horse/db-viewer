@@ -12,6 +12,14 @@ export default defineConfig({
     port: Number(process.env.WAILS_VITE_PORT) || 9245,
     strictPort: true,
   },
+
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@bindings": fileURLToPath(new URL("./bindings", import.meta.url)),
+    },
+  },
+  
   // plugins: [vue(), wails("./bindings")],
   plugins: [
     vue({

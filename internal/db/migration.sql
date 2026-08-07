@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS connections (
     port INTEGER,
     user TEXT,
     password TEXT,
-    dbname TEXT
+    dbname TEXT,
+    pinned BOOLEAN DEFAULT false,
+    color TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -26,19 +28,19 @@ CREATE TABLE IF NOT EXISTS query_history (
 );
 
 
-INSERT INTO connections (
-    name, driver, host, port, user, password, dbname
-)
-VALUES
-(
-    'Local SQLite', 'sqlite', '', NULL, '', '','/home/camel/Desktop/go/chaarm/db-viewer/static/app.db'
-),
-(
-    'dvdrental', 'pgx', 'localhost', 5432, 'postgres', 'your_password', 'dvdrental'
-),
-(
-    'Local MySQL', 'mysql', '127.0.0.1', 3306, 'app_user', 'strong_password', 'app_database'
-);
+-- INSERT INTO connections (
+--     name, driver, host, port, user, password, dbname
+-- )
+-- VALUES
+-- (
+--     'Local SQLite', 'sqlite', '', NULL, '', '','/home/camel/Desktop/go/chaarm/db-viewer/static/app.db'
+-- ),
+-- (
+--     'dvdrental', 'pgx', 'localhost', 5432, 'postgres', 'your_password', 'dvdrental'
+-- ),
+-- (
+--     'Local MySQL', 'mysql', '127.0.0.1', 3306, 'app_user', 'strong_password', 'app_database'
+-- );
 
 -- INSERT INTO connections (name, driver, host, port, user, password, dbname)
 -- VALUES

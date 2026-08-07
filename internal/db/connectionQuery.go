@@ -14,7 +14,7 @@ func GetConnectionList() ([]types.Connection, error) {
 	var connections []types.Connection
 	for rows.Next() {
 		var connection types.Connection
-		if err := rows.Scan(&connection.Id, &connection.Name, &connection.Driver, &connection.Host, &connection.Port, &connection.User, &connection.Password, &connection.DBName); err != nil {
+		if err := rows.Scan(&connection.Id, &connection.Name, &connection.Driver, &connection.Host, &connection.Port, &connection.User, &connection.Password, &connection.DBName, &connection.Pinned, &connection.Color); err != nil {
 			return nil, err
 		}
 		connections = append(connections, connection)
