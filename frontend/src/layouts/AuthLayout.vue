@@ -113,17 +113,23 @@ import { watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useActiveConnection } from "@/stores/activeConnection";
 
-const router = useRouter();
-
+const $router = useRouter();
+const activeConnectionStore = useActiveConnection();
 const store = useConnectionStore();
 
 const { connections, showNewConnectionDialog, activeConnection } =
     storeToRefs(store);
 
-function selectConnection(connection: any) {
+async function selectConnection(connection: any) {
     store.setSelectedSession(connection);
-    store.pingConnection();
+
+    const connected = await store.connectToSession(connection);
+    if (connected) {
+        await activeConnectionStore.setActiveConnection();
+        $router.push({ name: "WorkSpace" });
+    }
 }
 
 watch(activeConnection, (newConnection) => {

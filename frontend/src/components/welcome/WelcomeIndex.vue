@@ -3,21 +3,17 @@
         class="w-full max-w-xl bg-[#161310] backdrop-blur-md p-6 rounded-xl border shadow-2xl"
     >
         <!-- Header Section (Flex Container) -->
-        <div class="flex items-center gap-3 mb-6">
+        <!-- <div class="flex items-center gap-3 mb-6">
             <div>
                 <h4 class="text-sm font-bold text-white">
-                    <!-- <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                        </div> -->
-                    <!-- <q-icon name="add_link" size="24px" class="text-amber-400" /> -->
                     Setup Database Session
                 </h4>
                 <p class="text-[11px] text-[#8a8478]">
                     Initialize single engine configuration links dynamically
                 </p>
             </div>
-        </div>
+        </div> -->
 
-        {{ form }}
         <!-- Tabs (Full Width) -->
         <q-tabs
             v-model="form.type"
@@ -36,140 +32,141 @@
         <q-form
             ref="formRef"
             @submit="connect"
-            class="q-px-none q-pt-md max-h-[calc(100vh-180px)] overflow-y-auto md:max-h-none md:overflow-visible"
+            class="flex-1 flex flex-col min-h-0 px-6 pb-6 q-pt-md"
         >
-            <!-- PostgreSQL / MySQL fields -->
+            <div class="flex-1 min-h-0">
+                <!-- <q-scroll-area style="height: 100%; min-width: 300px"> -->
+                    <template v-if="form.type !== 'sqlite'">
+                        <q-input
+                            v-model="form.host"
+                            label="Host"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
 
-            <template v-if="form.type !== 'sqlite'">
-                <q-input
-                    v-model="form.host"
-                    label="Host"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
+                        <q-input
+                            v-model="form.port"
+                            label="Port"
+                            type="number"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
 
-                <q-input
-                    v-model="form.port"
-                    label="Port"
-                    type="number"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
+                        <q-input
+                            v-model="form.user"
+                            label="User"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
 
-                <q-input
-                    v-model="form.user"
-                    label="User"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
+                        <q-input
+                            v-model="form.password"
+                            label="Password"
+                            type="password"
+                            class="w-full q-pb-md"
+                            outlined
+                            dense
+                        />
 
-                <q-input
-                    v-model="form.password"
-                    label="Password"
-                    type="password"
-                    class="w-full q-pb-md"
-                    outlined
-                    dense
-                />
+                        <q-input
+                            v-model="form.database"
+                            label="Database"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
 
-                <q-input
-                    v-model="form.database"
-                    label="Database"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
+                        <q-input
+                            v-model="form.connection_name"
+                            label="Connection Name"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
 
-                <q-input
-                    v-model="form.connection_name"
-                    label="Connection Name"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
+                        <div class="q-mt-md">
+                            <div class="text-caption text-grey-5 q-mb-sm">
+                                Connection Color
+                            </div>
 
-                <div class="q-mt-md">
-                    <div class="text-caption text-grey-5 q-mb-sm">
-                        Connection Color
-                    </div>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    v-for="color in colors"
+                                    :key="color"
+                                    type="button"
+                                    class="w-7 h-7 rounded-md flex items-center justify-center border-2 border-transparent cursor-pointer transition-transform duration-150 hover:scale-110"
+                                    :class="
+                                        form.color === color
+                                            ? 'border-white ring-2 ring-white/40'
+                                            : ''
+                                    "
+                                    :style="{ backgroundColor: color }"
+                                    @click="form.color = color"
+                                >
+                                    <q-icon
+                                        v-if="form.color === color"
+                                        name="check"
+                                        size="16px"
+                                        color="white"
+                                    />
+                                </button>
 
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-for="color in colors"
-                            :key="color"
-                            type="button"
-                            class="w-7 h-7 rounded-md flex items-center justify-center border-2 border-transparent cursor-pointer transition-transform duration-150 hover:scale-110"
-                            :class="
-                                form.color === color
-                                    ? 'border-white ring-2 ring-white/40'
-                                    : ''
-                            "
-                            :style="{ backgroundColor: color }"
-                            @click="form.color = color"
-                        >
-                            <q-icon
-                                v-if="form.color === color"
-                                name="check"
-                                size="16px"
-                                color="white"
-                            />
-                        </button>
+                                <span class="text-xs text-grey-5 ml-2">
+                                    {{ form.color }}
+                                </span>
+                            </div>
+                        </div>
 
-                        <span class="text-xs text-grey-5 ml-2">
-                            {{ form.color }}
-                        </span>
-                    </div>
-                </div>
-
-                <q-checkbox
-                    v-model="form.save_connection"
-                    label="Save connection"
-                    class="w-1/2 q-pt-md"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
-                <q-checkbox
-                    v-model="form.readonly"
-                    label="Readonly"
-                    class="w-1/2 q-pt-md"
-                    :rules="[required]"
-                    outlined
-                    dense
-                />
-                <q-checkbox
-                    v-model="form.use_ssh"
-                    label="Connect through SSH tunnel"
-                    class="w-full q-pt-md"
-                    dense
-                />
-            </template>
-
-            <!-- SQLite fields -->
-            <template v-else>
-                <q-input
-                    v-model="form.database"
-                    label="Database File"
-                    hint="/path/to/database.db"
-                    class="w-full"
-                    :rules="[required]"
-                    outlined
-                    dense
-                >
-                    <template #append>
-                        <q-icon name="folder" />
+                        <q-checkbox
+                            v-model="form.save_connection"
+                            label="Save connection"
+                            class="w-1/2 q-pt-md"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
+                        <q-checkbox
+                            v-model="form.readonly"
+                            label="Readonly"
+                            class="w-1/2 q-pt-md"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        />
+                        <q-checkbox
+                            v-model="form.use_ssh"
+                            label="Connect through SSH tunnel"
+                            class="w-full q-pt-md"
+                            dense
+                        />
                     </template>
-                </q-input>
-            </template>
 
+                    <!-- SQLite fields -->
+                    <template v-else>
+                        <q-input
+                            v-model="form.database"
+                            label="Database File"
+                            hint="/path/to/database.db"
+                            class="w-full"
+                            :rules="[required]"
+                            outlined
+                            dense
+                        >
+                            <template #append>
+                                <q-icon name="folder" />
+                            </template>
+                        </q-input>
+                    </template>
+                <!-- </q-scroll-area> -->
+            </div>
             <q-btn
                 unelevated
                 color="amber"
@@ -185,15 +182,13 @@
             <q-card class="w-full max-w-lg bg-[#161310] text-white">
                 <q-card-section class="flex items-center justify-between">
                     <div>
-                        <div class="text-base font-bold">
-                            SSH Configuration
-                        </div>
-        
+                        <div class="text-base font-bold">SSH Configuration</div>
+
                         <div class="text-xs text-grey-5 q-mt-xs">
                             Configure the SSH tunnel for this connection
                         </div>
                     </div>
-        
+
                     <q-btn
                         flat
                         round
@@ -203,11 +198,10 @@
                         @click="cancelSsh"
                     />
                 </q-card-section>
-        
+
                 <q-separator dark />
-        
+
                 <q-card-section class="q-gutter-md">
-        
                     <q-input
                         v-model="sshForm.name"
                         label="Configuration Name"
@@ -216,7 +210,7 @@
                         color="amber"
                         :rules="[required]"
                     />
-        
+
                     <div class="row q-col-gutter-md">
                         <div class="col-8">
                             <q-input
@@ -228,7 +222,7 @@
                                 :rules="[required]"
                             />
                         </div>
-        
+
                         <div class="col-4">
                             <q-input
                                 v-model.number="sshForm.port"
@@ -241,7 +235,7 @@
                             />
                         </div>
                     </div>
-        
+
                     <q-input
                         v-model="sshForm.username"
                         label="Username"
@@ -250,7 +244,7 @@
                         color="amber"
                         :rules="[required]"
                     />
-        
+
                     <q-select
                         v-model="sshForm.auth_method"
                         label="Authentication Method"
@@ -270,7 +264,7 @@
                             },
                         ]"
                     />
-        
+
                     <!-- Password authentication -->
                     <q-input
                         v-if="sshForm.auth_method === 'password'"
@@ -281,7 +275,7 @@
                         dense
                         color="amber"
                     />
-        
+
                     <!-- Private key authentication -->
                     <template v-if="sshForm.auth_method === 'private_key'">
                         <q-input
@@ -294,7 +288,7 @@
                             autogrow
                             hint="Paste your SSH private key"
                         />
-        
+
                         <q-input
                             v-model="sshForm.passphrase"
                             label="Key Passphrase"
@@ -304,11 +298,10 @@
                             color="amber"
                         />
                     </template>
-        
                 </q-card-section>
-        
+
                 <q-separator dark />
-        
+
                 <q-card-actions align="right" class="q-pa-md">
                     <q-btn
                         flat
@@ -316,7 +309,7 @@
                         color="grey-5"
                         @click="cancelSsh"
                     />
-        
+
                     <q-btn
                         unelevated
                         label="Save SSH Configuration"
@@ -357,7 +350,7 @@ const form = ref({
     connection_name: "",
     color: "",
     save_connection: true,
-  readonly: false,
+    readonly: false,
     use_ssh: false,
 });
 const sshForm = ref({
@@ -399,30 +392,31 @@ async function connect() {
     }
 
     try {
-      const response = await DbService.PingConfig(parseToConfig());
-      if (response) {
-        Dialog.create({
-          title: "Ping Successful",
-          message: "Connect to the database?",
-          ok: "OK",
-          cancel: "Cancel",
-        }).onOk(async () => {
-          await DbService.SaveAndConnect(parseToConfig());
-          activeConnectionStore.setActiveConnection();
-          $router.push({name: "workspace"});
-          
-        });
-      }
+        const response = await DbService.PingConfig(parseToConfig());
+        if (response) {
+            Dialog.create({
+                title: "Ping Successful",
+                message: "Connect to the database?",
+                ok: "OK",
+                cancel: "Cancel",
+            }).onOk(async () => {
+                await DbService.SaveAndConnect(parseToConfig());
+                activeConnectionStore.setActiveConnection();
+              // $router.push({ name: "workspace" });
+                $router.push({ name: "WorkSpace" });
+            });
+        }
     } catch (error: any) {
-      
-        Dialog.create({ message: error.message || "Failed to ping config", color: "negative" });
+        Dialog.create({
+            message: error.message || "Failed to ping config",
+            color: "negative",
+        });
         console.error(error);
     }
 }
 
-
 function parseToConfig() {
-    return  <ConnectionConfig>{
+    return <ConnectionConfig>{
         Name: form.value.connection_name,
         Type: form.value.type,
 
@@ -501,7 +495,6 @@ watch(
         }
     },
 );
-
 
 onMounted(() => {
     store.getConnections();

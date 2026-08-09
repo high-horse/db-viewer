@@ -53,6 +53,7 @@ type RedisConnection interface {
 type ConnectionManager struct {
 	rw sync.RWMutex
 	connections map[string]Connection
+	activeID    string
 }
 
 func NewConnectionManager() *ConnectionManager {
@@ -63,8 +64,8 @@ func NewConnectionManager() *ConnectionManager {
 
 
 func(m *ConnectionManager) Add(conn Connection) error {
-	m.rw.RLock()
-	defer m.rw.RUnlock()
+	m.rw.Lock()
+	defer m.rw.Unlock()
 
 	if conn == nil {
 		return ErrInvalidConnection
@@ -104,10 +105,13 @@ func (m *ConnectionManager)Remove(id string) error{
 	}
 
 	delete(m.connections, id)
+	if m.activeID == id {
+		m.activeID = ""
+	}
 	return nil
 }
 
-func (m *ConnectionManager)List() []Connection {
+func (m *ConnectionManager) List() []Connection {
 	m.rw.RLock()
 	defer m.rw.RUnlock()
 
@@ -130,4 +134,24 @@ func (m *ConnectionManager) CloseAll() error {
 	}
 
 	return  nil
+}
+
+func (m *ConnectionManager) SetActive(id string) error {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+	if _, ok := m.connections[id]; !ok {
+		return ErrConnectionNotFound
+	}
+	m.activeID = id
+	return nil
+}
+
+func (m *ConnectionManager) Active() (Connection, bool) {
+	m.rw.RLock()
+	defer m.rw.RUnlock()
+	if m.activeID == "" {
+		return nil, false
+	}
+	conn, ok := m.connections[m.activeID]
+	return conn, ok
 }
