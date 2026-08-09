@@ -20,13 +20,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/workspace',
     component: WorkspaceLayout,
-    children: [
-      {
-        path: '',
-        component: WorkSpacePage,
-        name: 'WorkSpace',
-      },
-    ],
+    name: 'WorkSpace',
+    // children: [
+    //   {
+    //     path: '',
+    //     component: WorkSpacePage,
+    //     name: 'WorkSpace',
+    //   },
+    // ],
   },
 ];
 

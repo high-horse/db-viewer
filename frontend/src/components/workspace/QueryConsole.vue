@@ -1,17 +1,182 @@
 <template>
     <div class="h-full flex flex-col bg-[#0c0b09]">
-        <!-- Tab Strip -->
+        <!-- ========================= -->
+        <!-- TAB BAR -->
+        <!-- ========================= -->
         <div
-            class="h-9 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-2"
+            class="h-9 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center"
         >
-            <div class="flex items-center h-full">
+            <!-- Tabs Container -->
+            <div
+                class="flex items-center h-full flex-1 min-w-0 overflow-x-auto"
+            >
+                <!-- Existing Tabs -->
                 <div
-                    class="h-full px-4 border-r border-[#292521] bg-[#0c0b09] text-xs font-mono text-amber-400 flex items-center gap-2 border-b-2 border-b-amber-500"
+                    v-for="tab in tabs"
+                    :key="tab.id"
+                    class="h-full flex items-center shrink-0 border-r border-[#292521]"
+                    :class="
+                        tab.id === activeTabId
+                            ? 'bg-[#0c0b09] border-b-2 border-b-amber-500'
+                            : 'bg-[#161310] hover:bg-[#231f1a]'
+                    "
                 >
-                    <q-icon name="code" size="12px" />
+                    <!-- Tab Select -->
+                    <button
+                        type="button"
+                        class="h-full px-3 flex items-center gap-2 text-xs font-mono min-w-0"
+                        :class="
+                            tab.id === activeTabId
+                                ? 'text-amber-400'
+                                : 'text-[#6b7280] hover:text-[#d1d5db]'
+                        "
+                        @click="selectTab(tab.id)"
+                    >
+                        <q-icon
+                            name="code"
+                            size="12px"
+                        />
 
-                    console_1.sql
+                        <span
+                            class="max-w-32 truncate"
+                        >
+                            {{ tab.title }}
+                        </span>
+
+                        <!-- Dirty Indicator -->
+                        <span
+                            v-if="tab.dirty"
+                            class="text-amber-500 text-[9px]"
+                        >
+                            ●
+                        </span>
+
+                        <!-- Loading Indicator -->
+                        <q-spinner
+                            v-if="tab.loading"
+                            color="amber"
+                            size="11px"
+                        />
+                    </button>
+
+                    <!-- Close -->
+                    <button
+                        type="button"
+                        class="w-5 h-full flex items-center justify-center text-[#4b4540] hover:text-white hover:bg-[#231f1a]"
+                        @click.stop="closeTab(tab.id)"
+                    >
+                        <q-icon
+                            name="close"
+                            size="13px"
+                        />
+                    </button>
                 </div>
+
+                <!-- New Tab -->
+                <button
+                    type="button"
+                    class="h-full w-9 shrink-0 flex items-center justify-center text-[#6b7280] hover:text-amber-400 hover:bg-[#231f1a]"
+                    title="New Query"
+                    @click="createTab"
+                >
+                    <q-icon
+                        name="add"
+                        size="16px"
+                    />
+                </button>
+            </div>
+
+            <!-- Run Button -->
+            <div
+                class="h-full flex items-center px-2 border-l border-[#292521]"
+            >
+                <q-btn
+                    unelevated
+                    color="amber"
+                    text-color="black"
+                    size="sm"
+                    class="font-bold px-3 tracking-wide"
+                    :disable="!activeTab || !activeTab.sql.trim()"
+                    :loading="activeTab?.loading"
+                    @click="executeActiveTab"
+                >
+                    <q-icon
+                        name="play_arrow"
+                        size="16px"
+                        class="mr-1"
+                    />
+
+                    RUN
+                </q-btn>
+            </div>
+        </div>
+
+        <!-- ========================= -->
+        <!-- EDITOR TOOLBAR -->
+        <!-- ========================= -->
+        <div
+            class="h-7 shrink-0 bg-[#100e0c] border-b border-[#292521] flex items-center justify-between px-3"
+        >
+            <div class="flex items-center gap-3">
+                <span
+                    v-if="activeTab"
+                    class="text-[10px] font-mono text-[#6b7280]"
+                >
+                    {{ activeTab.title }}
+                </span>
+
+                <span
+                    v-if="activeTab?.dirty"
+                    class="text-[10px] text-amber-500"
+                >
+                    Modified
+                </span>
+            </div>
+
+            <div
+                v-if="activeTab"
+                class="flex items-center gap-2 text-[10px] text-[#4b4540]"
+            >
+                <span>Ctrl + Enter</span>
+                <span>Run</span>
+            </div>
+        </div>
+
+        <!-- ========================= -->
+        <!-- SQL EDITOR -->
+        <!-- ========================= -->
+        <div
+            v-if="activeTab"
+            class="flex-grow min-h-0 relative"
+        >
+            <textarea
+                :value="activeTab.sql"
+                class="absolute inset-0 w-full h-full p-4 bg-[#0c0b09] text-amber-100/90 font-mono text-xs border-none resize-none focus:outline-none leading-relaxed tracking-wide"
+                spellcheck="false"
+                placeholder="Write your SQL query..."
+                @input="handleInput"
+                @keydown.ctrl.enter.prevent="executeActiveTab"
+                @keydown.meta.enter.prevent="executeActiveTab"
+            ></textarea>
+        </div>
+
+        <!-- ========================= -->
+        <!-- NO TAB STATE -->
+        <!-- ========================= -->
+        <div
+            v-else
+            class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#0c0b09]"
+        >
+            <q-icon
+                name="code"
+                size="36px"
+                class="text-[#4b4540]"
+            />
+
+            <div
+                class="text-xs text-[#6b7280]"
+            >
+                No query tab open
             </div>
 
             <q-btn
@@ -19,58 +184,89 @@
                 color="amber"
                 text-color="black"
                 size="sm"
-                class="font-bold px-3 tracking-wide"
-                :loading="executing"
-                @click="executeQuery"
-            >
-                <q-icon name="play_arrow" size="16px" class="mr-1" />
-
-                RUN
-            </q-btn>
+                label="New Query"
+                icon="add"
+                @click="createTab"
+            />
         </div>
 
-        <!-- SQL Editor -->
-        <textarea
-            v-model="model"
-            class="grow w-full p-4 bg-[#0c0b09] text-amber-100/90 font-mono text-xs border-none resize-none focus:outline-none leading-relaxed tracking-wide"
-            spellcheck="false"
-            placeholder="Write your SQL query..."
-        ></textarea>
+        <!-- ========================= -->
+        <!-- ERROR -->
+        <!-- ========================= -->
+        <div
+            v-if="activeTab?.error"
+            class="min-h-8 max-h-24 overflow-auto bg-red-950/20 border-t border-red-900/50 px-3 py-2"
+        >
+            <div class="flex items-start gap-2">
+                <q-icon
+                    name="error_outline"
+                    size="15px"
+                    class="text-red-400 mt-0.5"
+                />
+
+                <span
+                    class="text-[11px] text-red-300 font-mono"
+                >
+                    {{ activeTab.error }}
+                </span>
+            </div>
+        </div>
     </div>
 </template>
 
+
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import type { QueryTab } from "@/types/queryTab";
 
 const props = defineProps<{
-    modelValue: string;
+    tabs: QueryTab[];
+    activeTabId: string | null;
+    activeTab: QueryTab | null;
 }>();
 
 const emit = defineEmits<{
-    "update:modelValue": [value: string];
-    execute: [query: string];
+    createTab: [];
+    selectTab: [id: string];
+    closeTab: [id: string];
+    updateSql: [id: string, sql: string];
+    execute: [id: string];
 }>();
 
-const executing = ref(false);
+function createTab() {
+    emit("createTab");
+}
 
-const model = computed({
-    get: () => props.modelValue,
-    set: (value: string) => {
-        emit("update:modelValue", value);
-    },
-});
+function selectTab(id: string) {
+    emit("selectTab", id);
+}
 
-async function executeQuery() {
-    if (!model.value.trim()) {
+function closeTab(id: string) {
+    emit("closeTab", id);
+}
+
+function executeActiveTab() {
+    if (!props.activeTab) {
         return;
     }
 
-    executing.value = true;
-
-    try {
-        emit("execute", model.value);
-    } finally {
-        executing.value = false;
+    if (!props.activeTab.sql.trim()) {
+        return;
     }
+
+    emit("execute", props.activeTab.id);
+}
+
+function handleInput(event: Event) {
+    if (!props.activeTab) {
+        return;
+    }
+
+    const target = event.target as HTMLTextAreaElement;
+
+    emit(
+        "updateSql",
+        props.activeTab.id,
+        target.value,
+    );
 }
 </script>

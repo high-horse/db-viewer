@@ -1,6 +1,6 @@
 export interface QueryColumn {
   Name: string;
-  Type: string;
+  Type?: string;
 }
 
 

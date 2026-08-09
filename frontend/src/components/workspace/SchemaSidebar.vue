@@ -6,11 +6,19 @@
         <div
             class="p-3 border-b border-[#292521] flex justify-between items-center bg-[#161310]"
         >
-            <span
-                class="text-[11px] font-bold uppercase tracking-wider text-[#6b7280]"
-            >
-                Schema Explorer
-            </span>
+            <div class="flex items-center gap-2">
+                <q-icon
+                    name="account_tree"
+                    size="15px"
+                    class="text-amber-400"
+                />
+
+                <span
+                    class="text-[11px] font-bold uppercase tracking-wider text-[#6b7280]"
+                >
+                    Schema Explorer
+                </span>
+            </div>
 
             <q-btn
                 flat
@@ -19,12 +27,40 @@
                 icon="refresh"
                 size="xs"
                 class="text-[#6b7280] hover:text-amber-400"
+                :loading="loading"
                 @click="refreshSchema"
             />
         </div>
 
+        <!-- Connection Information -->
+        <div
+            class="px-3 py-2 border-b border-[#292521] bg-[#100e0c]"
+        >
+            <div class="flex items-center gap-2">
+                <q-icon
+                    name="storage"
+                    size="15px"
+                    class="text-amber-400"
+                />
+
+                <div class="min-w-0">
+                    <div
+                        class="text-xs font-semibold text-white truncate"
+                    >
+                        dvdrental
+                    </div>
+
+                    <div
+                        class="text-[10px] text-[#6b7280] truncate"
+                    >
+                        PostgreSQL
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Schema Tree -->
-        <q-scroll-area class="grow p-2">
+        <q-scroll-area class="flex-grow p-2">
             <q-tree
                 :nodes="schemaNodes"
                 node-key="id"
@@ -35,6 +71,7 @@
                 <template #default-header="prop">
                     <div
                         class="flex items-center gap-2 py-1 px-1 rounded cursor-pointer group w-full hover:bg-[#231f1a]"
+                        @dblclick="handleNodeDoubleClick(prop.node)"
                     >
                         <q-icon
                             :name="prop.node.icon"
@@ -55,13 +92,40 @@
                 </template>
             </q-tree>
         </q-scroll-area>
+
+        <!-- Sidebar Footer -->
+        <div
+            class="h-7 px-3 flex items-center border-t border-[#292521] bg-[#161310]"
+        >
+            <span
+                class="text-[10px] text-[#4b4540] font-mono"
+            >
+                {{ tableCount }} tables
+            </span>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
-const schemaNodes = ref([
+interface SchemaNode {
+    id: string;
+    label: string;
+    icon: string;
+    iconColor: string;
+    type?: string;
+    children?: SchemaNode[];
+}
+
+const emit = defineEmits<{
+    refresh: [];
+    selectTable: [node: SchemaNode];
+}>();
+
+const loading = ref(false);
+
+const schemaNodes = ref<SchemaNode[]>([
     {
         id: "db-root",
         label: "dvdrental",
@@ -100,9 +164,37 @@ const schemaNodes = ref([
     },
 ]);
 
-function refreshSchema() {
-    // TODO:
-    // Load schema from backend here.
-    console.log("Refreshing schema...");
+const tableCount = computed(() => {
+    return schemaNodes.value.reduce((count, node) => {
+        return (
+            count +
+            (node.children?.filter(
+                (child) => child.type === "table",
+            ).length ?? 0)
+        );
+    }, 0);
+});
+
+async function refreshSchema() {
+    loading.value = true;
+
+    try {
+        // TODO:
+        // Load schema from DbService here.
+
+        await new Promise((resolve) =>
+            setTimeout(resolve, 300),
+        );
+
+        emit("refresh");
+    } finally {
+        loading.value = false;
+    }
+}
+
+function handleNodeDoubleClick(node: SchemaNode) {
+    if (node.type === "table") {
+        emit("selectTable", node);
+    }
 }
 </script>
