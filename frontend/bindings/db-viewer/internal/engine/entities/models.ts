@@ -21,12 +21,11 @@ export interface ConnectionConfig {
     "Password": string;
     "Database": string;
     "SSL": boolean;
-
-    /**
-     * in case of in-memory database
-     */
+    "SSHConfigID": number | null;
+    "SSHConfig": SSHConfig | null;
     "InMemory": boolean;
     "ReadOnly": boolean;
+    "Color": string;
 }
 
 export interface InspectTableInfo {
@@ -52,4 +51,16 @@ export interface QueryResult {
     "lastInsertId": number;
     "duration": time$0.Duration;
     "isQuery": boolean;
+}
+
+export interface SSHConfig {
+    "ID": number;
+    "Name": string;
+    "Host": string;
+    "Port": number;
+    "Username": string;
+    "AuthMethod": string;
+    "PrivateKey": string;
+    "Passphrase": string;
+    "Password": string;
 }

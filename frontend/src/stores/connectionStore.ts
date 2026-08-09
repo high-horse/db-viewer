@@ -49,20 +49,59 @@ export const useConnectionStore = defineStore("connection", () => {
   async function pingConnection(): Promise<boolean> {
     if (!activeConnection.value) return false;
   
-    try {
-      const result = await DbService.PingConfig({
-        ID: String(activeConnection.value.id),
-        Name: activeConnection.value.name,
-        Host: activeConnection.value.host,
-        Port: Number(activeConnection.value.port.Int64),
-        User: activeConnection.value.user,
-        Password: activeConnection.value.password,
-        Database: activeConnection.value.dbname,
-        Type: activeConnection.value.driver,
+    const connection = activeConnection.value;
   
-        SSL: false,
-        InMemory: false,
-        ReadOnly: false,
+    try {
+
+      const result = await DbService.PingConfig({
+          ID: String(connection.id),
+          Name: connection.name,
+          Host: connection.host,
+          Port: Number(connection.port.Int64),
+          User: connection.user,
+          Password: connection.password,
+          Database: connection.dbname,
+          Type: connection.driver,
+      
+          SSL: false,
+      
+          SSHConfigID: connection.ssh_config_id?.Valid
+              ? Number(connection.ssh_config_id.Int64)
+              : null,
+      
+          SSHConfig: connection.ssh_config?.id
+              ? {
+                    ID: connection.ssh_config.id,
+                    Name: connection.ssh_config.name,
+                    Host: connection.ssh_config.host,
+                    Port: Number(connection.ssh_config.port),
+                    Username: connection.ssh_config.username,
+                    AuthMethod: connection.ssh_config.auth_method,
+      
+                    PrivateKey:
+                        connection.ssh_config.private_key.Valid
+                            ? connection.ssh_config.private_key.String
+                            : "",
+      
+                    Passphrase:
+                        connection.ssh_config.passphrase.Valid
+                            ? connection.ssh_config.passphrase.String
+                            : "",
+      
+                    Password:
+                        connection.ssh_config.password.Valid
+                            ? connection.ssh_config.password.String
+                            : "",
+                }
+              : null,
+      
+          InMemory: false,
+          ReadOnly: false,
+      
+          // ADD THIS
+          Color: connection.color.Valid
+              ? connection.color.String
+              : "",
       });
   
       console.log("ping result:", result);
@@ -78,6 +117,7 @@ export const useConnectionStore = defineStore("connection", () => {
       return false;
     }
   }
+  
   return {
     selectedConnection,
     activeConnection,

@@ -1,5 +1,8 @@
 <template>
+<q-page>
+    
   <WelcomeIndex />
+</q-page>
 </template>
 
 <script setup lang="ts">

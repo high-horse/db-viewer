@@ -1,20 +1,35 @@
 package entities
 
+type SSHConfig struct {
+    ID         int
+    Name       string
+    Host       string
+    Port       int
+    Username   string
+    AuthMethod string
+    PrivateKey string
+    Passphrase string
+    Password   string
+}
+
 type ConnectionConfig struct {
-	ID   string
-	Name string
-	Type string
+    ID   string
+    Name string
+    Type string
 
-	Host string
-	Port int
+    Host string
+    Port int
 
-	User     string
-	Password string
-	Database string
+    User     string
+    Password string
+    Database string
 
-	SSL bool
+    SSL bool
 
-	InMemory bool // in case of in-memory database
-	ReadOnly bool
-	
+    SSHConfigID *int
+    SSHConfig   *SSHConfig
+
+    InMemory bool
+    ReadOnly  bool
+    Color     string
 }

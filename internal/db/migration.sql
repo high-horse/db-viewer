@@ -1,3 +1,19 @@
+CREATE TABLE IF NOT EXISTS ssh_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL DEFAULT 22,
+    username TEXT NOT NULL,
+
+    auth_method TEXT NOT NULL DEFAULT 'private_key',
+
+    private_key TEXT,
+    passphrase TEXT,
+    password TEXT
+);
+
+
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
@@ -8,7 +24,11 @@ CREATE TABLE IF NOT EXISTS connections (
     password TEXT,
     dbname TEXT,
     pinned BOOLEAN DEFAULT false,
-    color TEXT
+    color TEXT,
+
+    ssh_config_id INTEGER,
+    
+    FOREIGN KEY (ssh_config_id) REFERENCES ssh_configs(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS users (

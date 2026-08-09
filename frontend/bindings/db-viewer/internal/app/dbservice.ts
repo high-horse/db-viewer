@@ -12,7 +12,7 @@ import * as db$0 from "../db/models.js";
 // @ts-ignore: Unused imports
 import * as entities$0 from "../engine/entities/models.js";
 
-export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<void> {
+export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(1396630503, config);
 }
 
@@ -20,16 +20,20 @@ export function Disconnect(connID: string): $CancellablePromise<void> {
     return $Call.ByID(3910241401, connID);
 }
 
-export function ExecuteQuery(connID: string, rawQuery: string): $CancellablePromise<entities$0.QueryResult | null> {
-    return $Call.ByID(2057292634, connID, rawQuery);
+export function ExecuteQuery(rawQuery: string): $CancellablePromise<entities$0.QueryResult | null> {
+    return $Call.ByID(2057292634, rawQuery);
+}
+
+export function GetActiveConnection(): $CancellablePromise<string> {
+    return $Call.ByID(123274639);
 }
 
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {
     return $Call.ByID(2140042053, limit, since);
 }
 
-export function InspectDatabase(connID: string): $CancellablePromise<entities$0.InspectTableInfo[] | null> {
-    return $Call.ByID(2574358800, connID);
+export function InspectDatabase(): $CancellablePromise<entities$0.InspectTableInfo[] | null> {
+    return $Call.ByID(2574358800);
 }
 
 export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
@@ -38,4 +42,8 @@ export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePro
 
 export function PingConnection(connID: string): $CancellablePromise<boolean> {
     return $Call.ByID(1640356639, connID);
+}
+
+export function SaveAndConnect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
+    return $Call.ByID(2635117723, config);
 }

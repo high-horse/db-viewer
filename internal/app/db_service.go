@@ -11,6 +11,7 @@ import (
 	"db-viewer/internal/engine/factory"
 	"db-viewer/internal/engine/transports"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,9 @@ type DbService struct {
 	factory     *factory.Factory
 	manager     *manager.ConnectionManager
 	historyRepo *db.HistoryRepository
+
+	mu                 sync.RWMutex
+	activeConnectionID string
 }
 
 func NewDbService(historyRepo *db.HistoryRepository) *DbService {
@@ -32,27 +36,91 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 	}
 }
 
-func (d *DbService) Connect(
+func (s *DbService) Connect(
 	ctx context.Context,
 	config entities.ConnectionConfig,
-) error {
+) (bool, error) {
 
-	transport := transports.NewDirect(config.Host, config.Port)
+	transport := transports.NewDirect(
+		config.Host,
+		config.Port,
+	)
 
-	conn, err := d.factory.Create(context.Background(), config, transport)
+	conn, err := s.factory.Create(
+		ctx,
+		config,
+		transport,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to create connection: %w", err)
+		return false, fmt.Errorf("failed to create connection: %w", err)
 	}
 
-	d.manager.Add(conn)
+	// First test the new connection.
+	if err := conn.Connect(ctx); err != nil {
+		return false,fmt.Errorf("failed to connect: %w", err)
+	}
 
-	return conn.Connect(ctx)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Disconnect currently active connection.
+	if s.activeConnectionID != "" {
+		if oldConn, ok := s.manager.Get(s.activeConnectionID); ok {
+			_ = oldConn.Disconnect()
+			s.manager.Remove(s.activeConnectionID)
+		}
+	}
+
+	// Add the successfully connected connection.
+	s.manager.Add(conn)
+
+	// Mark it active.
+	s.activeConnectionID = conn.ID()
+
+	return true, nil
 }
 
-func (s *DbService) InspectDatabase(ctx context.Context, connID string) ([]entities.InspectTableInfo, error) {
+func (s *DbService) Disconnect(
+	ctx context.Context,
+	connID string,
+) error {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	conn, ok := s.manager.Get(connID)
 	if !ok {
-		return nil, fmt.Errorf("connection not found")
+		return nil
+	}
+
+	if err := conn.Disconnect(); err != nil {
+		return err
+	}
+
+	s.manager.Remove(connID)
+
+	if s.activeConnectionID == connID {
+		s.activeConnectionID = ""
+	}
+
+	return nil
+}
+
+func (s *DbService) InspectDatabase(
+	ctx context.Context,
+) ([]entities.InspectTableInfo, error) {
+
+	s.mu.RLock()
+	connID := s.activeConnectionID
+	s.mu.RUnlock()
+
+	if connID == "" {
+		return nil, fmt.Errorf("no active database connection")
+	}
+
+	conn, ok := s.manager.Get(connID)
+	if !ok {
+		return nil, fmt.Errorf("active connection not found")
 	}
 
 	driver, err := s.factory.Driver(conn.Type())
@@ -63,10 +131,22 @@ func (s *DbService) InspectDatabase(ctx context.Context, connID string) ([]entit
 	return driver.Inspector().ListTables(ctx, conn)
 }
 
-func (s *DbService) ExecuteQuery(ctx context.Context, connID string, rawQuery string) (*entities.QueryResult, error) {
+func (s *DbService) ExecuteQuery(
+	ctx context.Context,
+	rawQuery string,
+) (*entities.QueryResult, error) {
+
+	s.mu.RLock()
+	connID := s.activeConnectionID
+	s.mu.RUnlock()
+
+	if connID == "" {
+		return nil, fmt.Errorf("no active database connection")
+	}
+
 	conn, ok := s.manager.Get(connID)
 	if !ok {
-		return nil, fmt.Errorf("connection not found")
+		return nil, fmt.Errorf("active connection not found")
 	}
 
 	driver, err := s.factory.Driver(conn.Type())
@@ -74,33 +154,35 @@ func (s *DbService) ExecuteQuery(ctx context.Context, connID string, rawQuery st
 		return nil, err
 	}
 
-	result, err := driver.Executor().Execute(ctx, conn, rawQuery)
+	result, err := driver.Executor().Execute(
+		ctx,
+		conn,
+		rawQuery,
+	)
+
 	historyEntry := db.QueryHistoryEntity{
 		ConnectionId: connID,
 		DatabaseName: conn.DatabaseName(),
 		QueryText:    rawQuery,
 		Status:       "SUCCESS",
 	}
+
 	if err != nil {
 		historyEntry.Status = "ERROR"
-		return nil, fmt.Errorf("SQL execution evaluation error: %w", err)
+
+		return nil, fmt.Errorf(
+			"SQL execution evaluation error: %w",
+			err,
+		)
 	}
+
 	historyEntry.Duration = int(result.Duration)
+
 	go func() {
-		s.historyRepo.Log(ctx, historyEntry)
+		_ = s.historyRepo.Log(ctx, historyEntry)
 	}()
+
 	return result, nil
-}
-
-func (s *DbService) Disconnect(ctx context.Context, connID string) error {
-	conn, ok := s.manager.Get(connID)
-	if !ok {
-		return nil
-	}
-
-	_ = conn.Disconnect()
-	s.manager.Remove(connID) // Make sure to implement a Remove method inside your engine manager wrapper
-	return nil
 }
 
 func (s *DbService) PingConnection(ctx context.Context, connID string) (bool, error) {
@@ -152,4 +234,23 @@ func (s *DbService) GetQueryHistory(
 	ctx context.Context, limit int, since time.Time,
 ) ([]db.QueryHistoryEntity, error) {
 	return s.historyRepo.GetHistory(ctx, limit, since)
+}
+
+func (s *DbService) SaveAndConnect(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
+	if err := db.StoreConnection(config); err != nil {
+		return false, err
+	}
+
+	return s.Connect(ctx, config)
+}
+
+func (s *DbService) GetActiveConnection() (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.activeConnectionID == "" {
+		return "", fmt.Errorf("no active connection")
+	}
+
+	return s.activeConnectionID, nil
 }

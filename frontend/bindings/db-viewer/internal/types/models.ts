@@ -16,4 +16,18 @@ export interface Connection {
     "dbname": string;
     "pinned": boolean;
     "color": sql$0.NullString;
+    "ssh_config_id": sql$0.NullInt64;
+    "ssh_config": SSHConfig;
+}
+
+export interface SSHConfig {
+    "id": number;
+    "name": string;
+    "host": string;
+    "port": number;
+    "username": string;
+    "auth_method": string;
+    "private_key": sql$0.NullString;
+    "passphrase": sql$0.NullString;
+    "password": sql$0.NullString;
 }

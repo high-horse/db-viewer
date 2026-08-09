@@ -5,5 +5,6 @@ export type {
     ColumnInfo,
     ConnectionConfig,
     InspectTableInfo,
-    QueryResult
+    QueryResult,
+    SSHConfig
 } from "./models.js";

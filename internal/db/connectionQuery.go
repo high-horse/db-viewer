@@ -1,6 +1,9 @@
 package db
 
-import "db-viewer/internal/types"
+import (
+	"db-viewer/internal/engine/entities"
+	"db-viewer/internal/types"
+)
 
 func GetConnectionList() ([]types.Connection, error) {
 
@@ -22,6 +25,6 @@ func GetConnectionList() ([]types.Connection, error) {
 	return connections, nil
 }
 
-func StoreConnection(conn types.Connection) error {
+func StoreConnection(conn entities.ConnectionConfig) error {
 	return nil
 }

@@ -65,7 +65,7 @@
                                                     connection.port.Int64
                                                 }}
                                             </span>
-    
+
                                             <span
                                                 v-else
                                                 class="text-[11px] text-gray-500 font-mono truncate"
@@ -79,8 +79,6 @@
                                                 }}
                                             </span>
                                         </div>
-
-                                       
                                     </div>
                                 </div>
                                 <div>
@@ -100,7 +98,11 @@
             <main
                 class="flex-1 flex items-center justify-center p-8 bg-radial-gradient"
             >
-                <router-view />
+                <q-layout>
+                    <q-page-container>
+                        <router-view />
+                    </q-page-container>
+                </q-layout>
             </main>
         </div>
     </div>
