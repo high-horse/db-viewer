@@ -43,7 +43,6 @@ func main() {
 		Name:        "db-viewer",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
 			application.NewService(dbService),
 			application.NewService(app.NewDatabaseService()),
 		},
