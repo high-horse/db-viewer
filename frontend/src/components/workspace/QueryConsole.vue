@@ -149,15 +149,12 @@
             v-if="activeTab"
             class="flex-grow min-h-0 relative"
         >
-            <textarea
-                :value="activeTab.sql"
-                class="absolute inset-0 w-full h-full p-4 bg-[#0c0b09] text-amber-100/90 font-mono text-xs border-none resize-none focus:outline-none leading-relaxed tracking-wide"
-                spellcheck="false"
-                placeholder="Write your SQL query..."
-                @input="handleInput"
-                @keydown.ctrl.enter.prevent="executeActiveTab"
-                @keydown.meta.enter.prevent="executeActiveTab"
-            ></textarea>
+            <SqlEditor
+                v-if="activeTab"
+                :model-value="activeTab.sql"
+                @update:model-value="handleSqlUpdate"
+                @execute="executeActiveTab"
+            />
         </div>
 
         <!-- ========================= -->
@@ -217,6 +214,7 @@
 
 <script setup lang="ts">
 import type { QueryTab } from "@/types/queryTab";
+import SqlEditor from "./SqlEditor.vue";
 
 const props = defineProps<{
     tabs: QueryTab[];
@@ -244,6 +242,18 @@ function closeTab(id: string) {
     emit("closeTab", id);
 }
 
+function handleSqlUpdate(sql: string) {
+    if (!props.activeTab) {
+        return;
+    }
+
+    emit(
+        "updateSql",
+        props.activeTab.id,
+        sql,
+    );
+}
+
 function executeActiveTab() {
     if (!props.activeTab) {
         return;
@@ -254,19 +264,5 @@ function executeActiveTab() {
     }
 
     emit("execute", props.activeTab.id);
-}
-
-function handleInput(event: Event) {
-    if (!props.activeTab) {
-        return;
-    }
-
-    const target = event.target as HTMLTextAreaElement;
-
-    emit(
-        "updateSql",
-        props.activeTab.id,
-        target.value,
-    );
 }
 </script>
