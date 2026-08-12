@@ -6,6 +6,8 @@ import (
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/metadata"
 	"db-viewer/internal/engine/metadata/mySQLInspector"
+	queryParaser "db-viewer/internal/engine/parser"
+	mysqlQueryParser "db-viewer/internal/engine/parser/mysql"
 
 	queryexecutor "db-viewer/internal/engine/queryExecutor"
 	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
@@ -15,6 +17,7 @@ import (
 type Driver struct {
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
+	parser  queryParaser.Parser
 }
 
 func NewDriver() *Driver {
@@ -22,6 +25,7 @@ func NewDriver() *Driver {
 		// Instantiate once during driver creation
 		executor:  sqlExecutor.New(),
 		inspector: mySQLInspector.NewInspector(),
+		parser: mysqlQueryParser.NewParser(),
 	}
 }
 
@@ -41,4 +45,8 @@ func (d *Driver) Executor() queryexecutor.Executor {
 
 func (d *Driver) Inspector() metadata.Inspector {
 	return d.inspector
+}
+
+func (d *Driver) Parser() queryParaser.Parser {
+	return d.parser
 }

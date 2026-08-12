@@ -33,26 +33,16 @@
         </div>
 
         <!-- Connection Information -->
-        <div
-            class="px-3 py-2 border-b border-[#292521] bg-[#100e0c]"
-        >
+        <div class="px-3 py-2 border-b border-[#292521] bg-[#100e0c]">
             <div class="flex items-center gap-2">
-                <q-icon
-                    name="storage"
-                    size="15px"
-                    class="text-amber-400"
-                />
+                <q-icon name="storage" size="15px" class="text-amber-400" />
 
                 <div class="min-w-0">
-                    <div
-                        class="text-xs font-semibold text-white truncate"
-                    >
+                    <div class="text-xs font-semibold text-white truncate">
                         dvdrental
                     </div>
 
-                    <div
-                        class="text-[10px] text-[#6b7280] truncate"
-                    >
+                    <div class="text-[10px] text-[#6b7280] truncate">
                         PostgreSQL
                     </div>
                 </div>
@@ -97,9 +87,7 @@
         <div
             class="h-7 px-3 flex items-center border-t border-[#292521] bg-[#161310]"
         >
-            <span
-                class="text-[10px] text-[#4b4540] font-mono"
-            >
+            <span class="text-[10px] text-[#4b4540] font-mono">
                 {{ tableCount }} tables
             </span>
         </div>
@@ -168,9 +156,8 @@ const tableCount = computed(() => {
     return schemaNodes.value.reduce((count, node) => {
         return (
             count +
-            (node.children?.filter(
-                (child) => child.type === "table",
-            ).length ?? 0)
+            (node.children?.filter((child) => child.type === "table").length ??
+                0)
         );
     }, 0);
 });
@@ -182,9 +169,7 @@ async function refreshSchema() {
         // TODO:
         // Load schema from DbService here.
 
-        await new Promise((resolve) =>
-            setTimeout(resolve, 300),
-        );
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         emit("refresh");
     } finally {

@@ -4,27 +4,66 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
-
+import { Prec, Compartment } from "@codemirror/state";
+import { linter, type Diagnostic } from "@codemirror/lint";
+import { syntaxTree } from "@codemirror/language";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 
-import { sql, PostgreSQL } from "@codemirror/lang-sql";
-
+import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
+import { nord } from '@fsegurai/codemirror-theme-nord'
+import { materialDark } from '@fsegurai/codemirror-theme-material-dark'
 import { oneDark } from "@codemirror/theme-one-dark";
 
 const props = defineProps<{
-    modelValue: string;
+  modelValue: string;
+  dbDriver: "pgx" | "mysql" | "sqlite";
 }>();
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
-    execute: [];
+    execute: [sql: string];
 }>();
 
 const editorContainer = ref<HTMLElement | null>(null);
 
 let editorView: EditorView | null = null;
+const sqlDialect = new Compartment();
+
+function getDialect(driver: string) {
+  switch (driver) {
+    case "pgx":
+      return PostgreSQL;
+    case "mysql":
+      return MySQL;
+    case "sqlite":
+      return SQLite;
+    default:
+      return PostgreSQL;
+  }
+}
+
+
+function sqlSyntaxLinter(view: EditorView): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+
+    syntaxTree(view.state).iterate({
+        enter(node) {
+            if (node.type.isError) {
+                diagnostics.push({
+                    from: node.from,
+                    to: Math.max(node.to, node.from + 1),
+                    severity: "error",
+                    message: "SQL syntax error",
+                });
+            }
+        },
+    });
+
+    return diagnostics;
+}
+
 
 onMounted(() => {
     if (!editorContainer.value) {
@@ -36,14 +75,21 @@ onMounted(() => {
 
         extensions: [
             // SQL syntax highlighting
-            sql({
-                dialect: PostgreSQL,
+            sqlDialect.of(
+              sql({
+                  dialect: getDialect(props.dbDriver),
+              }),
+            ),
+            
+
+            linter(sqlSyntaxLinter, {
+                delay: 300,
             }),
-
             // Dark editor theme
-            oneDark,
-
+            
+            materialDark, // oneDark, // nord,
             // Basic editing
+            // 
             keymap.of([...defaultKeymap, indentWithTab]),
 
             // Custom styling
@@ -101,16 +147,37 @@ onMounted(() => {
             }),
 
             // Ctrl/Cmd + Enter → execute
-            keymap.of([
-                {
-                    key: "Mod-Enter",
+            // keymap.of([
+            //     {
+            //         key: "Mod-Enter",
 
-                    run: () => {
-                        emit("execute");
-                        return true;
+            //         run: () => {
+            //             emit("execute");
+            //             return true;
+            //         },
+            //     },
+            // ]),
+            Prec.highest(
+                keymap.of([
+                    {
+                        key: "Mod-Enter",
+            
+                        run: () => {
+                            const sql = editorView?.state.doc.toString() ?? "";
+            
+                            if (!sql.trim()) {
+                                return true;
+                            }
+            
+                            console.log("Executing SQL:", sql);
+            
+                            emit("execute", sql);
+            
+                            return true;
+                        },
                     },
-                },
-            ]),
+                ])
+            ),
         ],
     });
 
@@ -139,6 +206,23 @@ watch(
                 to: editorView.state.doc.length,
                 insert: newValue,
             },
+        });
+    },
+);
+
+watch(
+    () => props.dbDriver,
+    (driver) => {
+        if (!editorView) {
+            return;
+        }
+
+        editorView.dispatch({
+            effects: sqlDialect.reconfigure(
+                sql({
+                    dialect: getDialect(driver),
+                }),
+            ),
         });
     },
 );

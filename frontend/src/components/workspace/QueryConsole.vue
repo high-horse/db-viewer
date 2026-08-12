@@ -1,8 +1,5 @@
 <template>
     <div class="h-full flex flex-col bg-[#0c0b09]">
-        <!-- ========================= -->
-        <!-- TAB BAR -->
-        <!-- ========================= -->
         <div
             class="h-9 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center"
         >
@@ -32,14 +29,9 @@
                         "
                         @click="selectTab(tab.id)"
                     >
-                        <q-icon
-                            name="code"
-                            size="12px"
-                        />
+                        <q-icon name="code" size="12px" />
 
-                        <span
-                            class="max-w-32 truncate"
-                        >
+                        <span class="max-w-32 truncate">
                             {{ tab.title }}
                         </span>
 
@@ -65,10 +57,7 @@
                         class="w-5 h-full flex items-center justify-center text-[#4b4540] hover:text-white hover:bg-[#231f1a]"
                         @click.stop="closeTab(tab.id)"
                     >
-                        <q-icon
-                            name="close"
-                            size="13px"
-                        />
+                        <q-icon name="close" size="13px" />
                     </button>
                 </div>
 
@@ -79,10 +68,7 @@
                     title="New Query"
                     @click="createTab"
                 >
-                    <q-icon
-                        name="add"
-                        size="16px"
-                    />
+                    <q-icon name="add" size="16px" />
                 </button>
             </div>
 
@@ -98,22 +84,15 @@
                     class="font-bold px-3 tracking-wide"
                     :disable="!activeTab || !activeTab.sql.trim()"
                     :loading="activeTab?.loading"
-                    @click="executeActiveTab"
                 >
-                    <q-icon
-                        name="play_arrow"
-                        size="16px"
-                        class="mr-1"
-                    />
+                    <!-- @click="runActiveTab" -->
+                    <q-icon name="play_arrow" size="16px" class="mr-1" />
 
                     RUN
                 </q-btn>
             </div>
         </div>
 
-        <!-- ========================= -->
-        <!-- EDITOR TOOLBAR -->
-        <!-- ========================= -->
         <div
             class="h-7 shrink-0 bg-[#100e0c] border-b border-[#292521] flex items-center justify-between px-3"
         >
@@ -142,39 +121,23 @@
             </div>
         </div>
 
-        <!-- ========================= -->
-        <!-- SQL EDITOR -->
-        <!-- ========================= -->
-        <div
-            v-if="activeTab"
-            class="flex-grow min-h-0 relative"
-        >
+        <div v-if="activeTab" class="flex-grow min-h-0 relative">
             <SqlEditor
                 v-if="activeTab"
                 :model-value="activeTab.sql"
+                :db-driver="'pgx'"
                 @update:model-value="handleSqlUpdate"
                 @execute="executeActiveTab"
             />
         </div>
 
-        <!-- ========================= -->
-        <!-- NO TAB STATE -->
-        <!-- ========================= -->
         <div
             v-else
             class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#0c0b09]"
         >
-            <q-icon
-                name="code"
-                size="36px"
-                class="text-[#4b4540]"
-            />
+            <q-icon name="code" size="36px" class="text-[#4b4540]" />
 
-            <div
-                class="text-xs text-[#6b7280]"
-            >
-                No query tab open
-            </div>
+            <div class="text-xs text-[#6b7280]">No query tab open</div>
 
             <q-btn
                 unelevated
@@ -187,9 +150,6 @@
             />
         </div>
 
-        <!-- ========================= -->
-        <!-- ERROR -->
-        <!-- ========================= -->
         <div
             v-if="activeTab?.error"
             class="min-h-8 max-h-24 overflow-auto bg-red-950/20 border-t border-red-900/50 px-3 py-2"
@@ -201,16 +161,13 @@
                     class="text-red-400 mt-0.5"
                 />
 
-                <span
-                    class="text-[11px] text-red-300 font-mono"
-                >
+                <span class="text-[11px] text-red-300 font-mono">
                     {{ activeTab.error }}
                 </span>
             </div>
         </div>
     </div>
 </template>
-
 
 <script setup lang="ts">
 import type { QueryTab } from "@/types/queryTab";
@@ -220,6 +177,8 @@ const props = defineProps<{
     tabs: QueryTab[];
     activeTabId: string | null;
     activeTab: QueryTab | null;
+  
+    onExecute: (id: string, sql: string) => void;
 }>();
 
 const emit = defineEmits<{
@@ -227,7 +186,6 @@ const emit = defineEmits<{
     selectTab: [id: string];
     closeTab: [id: string];
     updateSql: [id: string, sql: string];
-    execute: [id: string];
 }>();
 
 function createTab() {
@@ -247,22 +205,23 @@ function handleSqlUpdate(sql: string) {
         return;
     }
 
-    emit(
-        "updateSql",
-        props.activeTab.id,
-        sql,
-    );
+    emit("updateSql", props.activeTab.id, sql);
 }
 
-function executeActiveTab() {
+function executeActiveTab(sql: string) {
+    console.log("SQL received from editor:", sql);
+
     if (!props.activeTab) {
         return;
     }
 
-    if (!props.activeTab.sql.trim()) {
+    if (!sql.trim()) {
         return;
     }
 
-    emit("execute", props.activeTab.id);
+    props.onExecute(
+        props.activeTab.id,
+        sql,
+    );
 }
 </script>

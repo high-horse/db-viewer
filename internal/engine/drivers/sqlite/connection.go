@@ -41,7 +41,7 @@ func (c *Connecion) DatabaseName() string {
 }
 
 func (c *Connecion) Type() string {
-	return "sqlite"
+	return string(entities.DialectSQLite)
 }
 
 func (c *Connecion) DB() *sql.DB {

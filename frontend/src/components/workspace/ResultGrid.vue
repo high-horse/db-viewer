@@ -1,53 +1,30 @@
 <template>
-    <div
-        class="h-full flex flex-col bg-[#100e0c]"
-    >
-        <!-- ========================= -->
-        <!-- RESULT HEADER -->
-        <!-- ========================= -->
+    <div class="h-full flex flex-col bg-[#100e0c]">
         <div
             class="h-8 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-3 text-[11px] font-mono text-[#6b7280]"
         >
             <div class="flex items-center gap-3">
-                <span>
-                    RESULT GRID
-                </span>
+                <span> RESULT GRID </span>
 
-                <span
-                    v-if="result && !loading"
-                    class="text-teal-400 font-bold"
-                >
+                <span v-if="result && !loading" class="text-teal-400 font-bold">
                     • {{ result.Rows.length }} rows fetched
                 </span>
 
-                <span
-                    v-if="loading"
-                    class="text-amber-400 font-bold"
-                >
+                <span v-if="loading" class="text-amber-400 font-bold">
                     • Executing...
                 </span>
             </div>
 
-            <span
-                v-if="result && !loading"
-                class="text-[#6b7280]"
-            >
+            <span v-if="result && !loading" class="text-[#6b7280]">
                 {{ result.Duration }}ms execution latency
             </span>
         </div>
 
-        <!-- ========================= -->
-        <!-- ERROR -->
-        <!-- ========================= -->
         <div
             v-if="error"
             class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#100e0c]"
         >
-            <q-icon
-                name="error_outline"
-                size="32px"
-                class="text-red-400"
-            />
+            <q-icon name="error_outline" size="32px" class="text-red-400" />
 
             <div
                 class="text-xs text-red-300 font-mono max-w-xl text-center px-6"
@@ -56,28 +33,17 @@
             </div>
         </div>
 
-        <!-- ========================= -->
-        <!-- LOADING -->
-        <!-- ========================= -->
         <div
             v-else-if="loading"
             class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#100e0c]"
         >
-            <q-spinner-dots
-                color="amber"
-                size="32px"
-            />
+            <q-spinner-dots color="amber" size="32px" />
 
-            <span
-                class="text-xs text-[#6b7280] font-mono"
-            >
+            <span class="text-xs text-[#6b7280] font-mono">
                 Executing query...
             </span>
         </div>
 
-        <!-- ========================= -->
-        <!-- RESULT TABLE -->
-        <!-- ========================= -->
         <div
             v-else-if="result"
             class="flex-grow relative overflow-hidden bg-[#100e0c]"
@@ -98,22 +64,13 @@
             />
         </div>
 
-        <!-- ========================= -->
-        <!-- EMPTY STATE -->
-        <!-- ========================= -->
         <div
             v-else
             class="flex-grow flex flex-col justify-center items-center gap-3 bg-[#100e0c] text-[#4b4540]"
         >
-            <q-icon
-                name="table_rows"
-                size="32px"
-                class="opacity-40"
-            />
+            <q-icon name="table_rows" size="32px" class="opacity-40" />
 
-            <span
-                class="text-xs tracking-wider"
-            >
+            <span class="text-xs tracking-wider">
                 Execute a statement query to inspect structural rows
             </span>
         </div>
@@ -150,25 +107,17 @@ const mappedRows = computed(() => {
         return [];
     }
 
-    return props.result.Rows.map(
-        (row, rowIndex) => {
-            const rowObject = {
-                id: rowIndex,
-            } as Record<
-                string,
-                string | number
-            >;
+    return props.result.Rows.map((row, rowIndex) => {
+        const rowObject = {
+            id: rowIndex,
+        } as Record<string, string | number>;
 
-            props.result!.Columns.forEach(
-                (column, columnIndex) => {
-                    rowObject[column.Name] =
-                        row[columnIndex];
-                },
-            );
+        props.result!.Columns.forEach((column, columnIndex) => {
+            rowObject[column.Name] = row[columnIndex];
+        });
 
-            return rowObject;
-        },
-    );
+        return rowObject;
+    });
 });
 </script>
 

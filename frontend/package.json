@@ -12,6 +12,8 @@
   "dependencies": {
     "@codemirror/lang-sql": "^6.10.0",
     "@codemirror/theme-one-dark": "^6.1.3",
+    "@fsegurai/codemirror-theme-material-dark": "^6.2.5",
+    "@fsegurai/codemirror-theme-nord": "^6.2.5",
     "@quasar/extras": "^2.0.3",
     "@tailwindcss/vite": "^4.3.3",
     "@wailsio/runtime": "^3.0.0-beta.1",

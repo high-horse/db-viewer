@@ -41,7 +41,7 @@ func (c *Connection) DatabaseName() string {
 }
 
 func (c *Connection) Type() string {
-	return "pgx"
+	return string(entities.DialectPostgreSQL)
 }
 
 func (c *Connection) DB() *sql.DB {

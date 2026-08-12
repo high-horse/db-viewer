@@ -6,6 +6,8 @@ import (
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/metadata"
 	sqliteinspector "db-viewer/internal/engine/metadata/SQLiteInspector"
+	queryParaser "db-viewer/internal/engine/parser"
+	sqliteQueryParser "db-viewer/internal/engine/parser/sqlite"
 
 	queryexecutor "db-viewer/internal/engine/queryExecutor"
 	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
@@ -15,12 +17,14 @@ import (
 type Driver struct{
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
+	parser queryParaser.Parser
 }
 
 func NewDriver() *Driver {
 	return &Driver{
 		executor: sqlExecutor.New(),
 		inspector: sqliteinspector.NewInspector(),
+		parser: sqliteQueryParser.NewParser(),
 	}
 }
 
@@ -40,4 +44,8 @@ func (d *Driver) Executor() queryexecutor.Executor {
 
 func (d *Driver) Inspector() metadata.Inspector {
 	return d.inspector
+}
+
+func (d *Driver) Parser() queryParaser.Parser {
+	return d.parser
 }

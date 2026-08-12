@@ -40,7 +40,7 @@ func(c *Connection) DatabaseName() string {
 }
 
 func(c *Connection) Type() string {
-	return "mysql"
+	return string(entities.DialectMySQL)
 }
 
 func(c *Connection) DB() *sql.DB {

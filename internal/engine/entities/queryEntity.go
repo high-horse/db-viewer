@@ -28,3 +28,28 @@ type Column struct {
 	Name string
 	Type string
 }
+
+type SQLQueryEntity struct {
+	RawSQL string
+	StatementType StatementType
+	 Dialect       SQLDialect
+}
+
+type StatementType string
+const (
+    StatementSelect   StatementType = "select"
+    StatementInsert   StatementType = "insert"
+    StatementUpdate   StatementType = "update"
+    StatementDelete   StatementType = "delete"
+    StatementCreate   StatementType = "create"
+    StatementAlter    StatementType = "alter"
+    StatementDrop     StatementType = "drop"
+    StatementUnknown  StatementType = "unknown"
+)
+
+type SQLDialect string
+const (
+	DialectPostgreSQL SQLDialect = "pgx"
+	DialectMySQL       SQLDialect = "mysql"
+	DialectSQLite      SQLDialect = "sqlite"
+)

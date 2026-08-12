@@ -3,9 +3,7 @@
         class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-none"
     >
         <!-- Header -->
-        <WorkspaceHeader
-            @disconnect="handleDisconnect"
-        />
+        <WorkspaceHeader @disconnect="handleDisconnect" />
 
         <!-- Workspace -->
         <div class="grow flex relative">
@@ -31,25 +29,13 @@
                         <template #before>
                             <QueryConsole
                                 :tabs="queryTabsStore.tabs"
-                                :active-tab-id="
-                                    queryTabsStore.activeTabId
-                                "
-                                :active-tab="
-                                    queryTabsStore.activeTab
-                                "
-                                @create-tab="
-                                    queryTabsStore.createTab()
-                                "
-                                @select-tab="
-                                    queryTabsStore.selectTab
-                                "
-                                @close-tab="
-                                    queryTabsStore.closeTab
-                                "
-                                @update-sql="
-                                    queryTabsStore.updateSql
-                                "
-                                @execute="executeQuery"
+                                :active-tab-id="queryTabsStore.activeTabId"
+                                :active-tab="queryTabsStore.activeTab"
+                                @create-tab="queryTabsStore.createTab()"
+                                @select-tab="queryTabsStore.selectTab"
+                                @close-tab="queryTabsStore.closeTab"
+                                @update-sql="queryTabsStore.updateSql"
+                                :on-execute="executeQuery"
                             />
                         </template>
 
@@ -57,17 +43,12 @@
                         <template #after>
                             <ResultGrid
                                 :result="
-                                    queryTabsStore.activeTab
-                                        ?.result ?? null
+                                    queryTabsStore.activeTab?.result ?? null
                                 "
                                 :loading="
-                                    queryTabsStore.activeTab
-                                        ?.loading ?? false
+                                    queryTabsStore.activeTab?.loading ?? false
                                 "
-                                :error="
-                                    queryTabsStore.activeTab
-                                        ?.error ?? null
-                                "
+                                :error="queryTabsStore.activeTab?.error ?? null"
                             />
                         </template>
                     </q-splitter>
@@ -79,6 +60,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { DbService } from "@bindings/db-viewer/internal/app";
 
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
@@ -92,24 +74,30 @@ const editorHeight = ref(45);
 
 const queryTabsStore = useQueryTabsStore();
 
-async function executeQuery(id: string) {
-    const tab = queryTabsStore.tabs.find(
-        (tab) => tab.id === id,
-    );
+async function executeQuery(id: string, sql: string) {
+    console.log("executing sql query ", sql);
+    const tab = queryTabsStore.tabs.find((tab) => tab.id === id);
 
     if (!tab || !tab.sql.trim()) {
         return;
     }
 
     queryTabsStore.setLoading(id, true);
+    try {
+      DbService.ExecuteQuery(sql)
+    } catch (error) {
+        queryTabsStore.setError(
+            id,
+            error instanceof Error ? error.message : "Query execution failed",
+        );
+    }
 
     try {
         // Temporary dummy execution.
         // Replace this with DbService later.
+        
 
-        await new Promise((resolve) =>
-            setTimeout(resolve, 500),
-        );
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         queryTabsStore.setResult(id, {
             Duration: 8,
@@ -129,9 +117,7 @@ async function executeQuery(id: string) {
     } catch (error) {
         queryTabsStore.setError(
             id,
-            error instanceof Error
-                ? error.message
-                : "Query execution failed",
+            error instanceof Error ? error.message : "Query execution failed",
         );
     }
 }

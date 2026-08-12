@@ -6,6 +6,8 @@ import (
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/metadata"
 	pgxInspector "db-viewer/internal/engine/metadata/postgres"
+	queryParaser "db-viewer/internal/engine/parser"
+	pgxQueryParser "db-viewer/internal/engine/parser/postgres"
 	queryexecutor "db-viewer/internal/engine/queryExecutor"
 	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
 	"db-viewer/internal/engine/transports"
@@ -14,12 +16,14 @@ import (
 type Driver struct{
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
+	parser  queryParaser.Parser
 }
 
 func NewDriver() *Driver {
 	return &Driver{
 		executor:  sqlExecutor.New(),
 		inspector: pgxInspector.NewInspector(),
+		parser: pgxQueryParser.NewParser(),
 	}
 }
 
@@ -41,4 +45,7 @@ func (d *Driver) Inspector() metadata.Inspector {
 	return d.inspector
 }
 
+func (d *Driver) Parser() queryParaser.Parser {
+	return d.parser
+}
 

@@ -97,6 +97,8 @@ func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entiti
 		return nil, err
 	}
 
+	// parsed, err := driver.Parser
+
 	result, err := driver.Executor().Execute(
 		ctx,
 		conn,
@@ -179,3 +181,5 @@ func (s *DbService) GetActiveConnection() (string, error) {
 	}
 	return conn.ID(), nil
 }
+
+
