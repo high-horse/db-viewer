@@ -151,7 +151,7 @@
         </div>
 
         <div
-            v-if="activeTab?.error"
+            v-if="activeTab?.error && false"
             class="min-h-8 max-h-24 overflow-auto bg-red-950/20 border-t border-red-900/50 px-3 py-2"
         >
             <div class="flex items-start gap-2">
@@ -162,7 +162,7 @@
                 />
 
                 <span class="text-[11px] text-red-300 font-mono">
-                    {{ activeTab.error }}
+                    {{ activeTab?.error }}
                 </span>
             </div>
         </div>
