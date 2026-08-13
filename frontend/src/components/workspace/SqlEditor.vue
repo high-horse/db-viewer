@@ -1,5 +1,8 @@
 <template>
-     <div ref="editorContainer" class="h-full w-full overflow-hidden" /> 
+    <div
+        ref="editorContainer"
+        class="h-full w-full min-w-0 max-w-full overflow-hidden"
+    />
 </template>
 
 <script setup lang="ts">
@@ -108,6 +111,24 @@ function getCurrentQuery(view: EditorView): string | null {
     return null;
 }
 
+function executeCurrentQuery() {
+    if (!editorView) {
+        return;
+    }
+
+    const sql = getCurrentQuery(editorView);
+
+    if (!sql) {
+        return;
+    }
+
+    console.log("Executing SQL:", sql);
+    emit("execute", sql);
+}
+defineExpose({
+    execute: executeCurrentQuery,
+});
+
 onMounted(() => {
     if (!editorContainer.value) {
         return;
@@ -139,47 +160,64 @@ onMounted(() => {
             // Basic editing
             //
             keymap.of([...defaultKeymap, indentWithTab]),
-
+            EditorView.lineWrapping,
             // Custom styling
             EditorView.theme({
                 "&": {
                     height: "100%",
+                    width: "100%",
+                    minWidth: "0",
+                    minHeight: "0",
+                    maxWidth: "100%",
+            
                     backgroundColor: "#0c0b09",
                     color: "#d1d5db",
                 },
-
+            
+                ".cm-scroller": {
+                    overflow: "auto",
+                    minWidth: "0",
+                    minHeight: "0",
+                    maxWidth: "100%",
+                },
+            
                 ".cm-content": {
                     padding: "16px",
+            
                     fontFamily:
                         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            
                     fontSize: "12px",
                     lineHeight: "1.7",
                     caretColor: "#f59e0b",
+            
+                    minWidth: "0",
                 },
-
-                ".cm-scroller": {
-                    overflow: "auto",
+            
+                ".cm-line": {
+                    minWidth: "0",
                 },
-
+            
                 ".cm-gutters": {
                     backgroundColor: "#100e0c",
                     color: "#4b4540",
                     border: "none",
                 },
-
+            
                 ".cm-activeLineGutter": {
                     backgroundColor: "#231f1a",
                     color: "#f59e0b",
                 },
-
+            
                 ".cm-activeLine": {
                     backgroundColor: "rgba(245, 158, 11, 0.04)",
                 },
-
+            
                 ".cm-selectionBackground": {
-                    backgroundColor: "rgba(245, 158, 11, 0.20) !important",
+                    backgroundColor:
+                        "rgba(245, 158, 11, 0.20) !important",
                 },
-
+            
                 ".cm-cursor": {
                     borderLeftColor: "#f59e0b",
                 },
@@ -199,16 +237,8 @@ onMounted(() => {
                         key: "Mod-Enter",
 
                         run: () => {
-                            if (!editorView) return true;
-
-                            const sql = getCurrentQuery(editorView);
-                            if (!sql) {
-                                return true;
-                            }
-
-                            console.log("Executing SQL:", sql);
-                            emit("execute", sql);
-                            return true;
+                          executeCurrentQuery();
+                          return true;
                         },
                     },
                 ]),

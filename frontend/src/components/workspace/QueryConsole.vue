@@ -1,5 +1,7 @@
 <template>
-    <div class="h-full flex flex-col bg-[#0c0b09]">
+    <div
+        class="h-full w-full min-w-0 min-h-0 flex flex-col bg-[#0c0b09] overflow-hidden"
+    >
         <div
             class="h-9 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center"
         >
@@ -84,8 +86,8 @@
                     class="font-bold px-3 tracking-wide"
                     :disable="!activeTab || !activeTab.sql.trim()"
                     :loading="activeTab?.loading"
+                    @click.prevent="sqlEditorRef?.execute()"
                 >
-                    <!-- @click="runActiveTab" -->
                     <q-icon name="play_arrow" size="16px" class="mr-1" />
 
                     RUN
@@ -121,9 +123,13 @@
             </div>
         </div>
 
-        <div v-if="activeTab" class="flex-grow min-h-0 relative">
+        <div
+            v-if="activeTab"
+            class="flex-grow min-h-0 min-w-0 relative overflow-hidden"
+        >
             <SqlEditor
                 v-if="activeTab"
+                 ref="sqlEditorRef"
                 :model-value="activeTab.sql"
                 :db-driver="'pgx'"
                 @update:model-value="handleSqlUpdate"
@@ -170,9 +176,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import type { QueryTab } from "@/types/queryTab";
 import SqlEditor from "./SqlEditor.vue";
 
+const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null);
 const props = defineProps<{
     tabs: QueryTab[];
     activeTabId: string | null;
