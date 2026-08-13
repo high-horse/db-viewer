@@ -6,6 +6,7 @@ type ColumnInfo struct {
 	Name         string `json:"name"`
 	DatabaseType string `json:"databaseType"`
 	Nullable     bool   `json:"nullable"`
+	DefaultValue string `json:"defaultValue"`
 }
 
 type QueryResult struct {
@@ -27,6 +28,7 @@ type TableInfo struct {
 type Column struct {
 	Name string
 	Type string
+	DefaultValue string
 }
 
 type SQLQueryEntity struct {

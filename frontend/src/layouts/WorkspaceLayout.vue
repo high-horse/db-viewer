@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { DbService } from "@bindings/db-viewer/internal/app";
-
+import type { QueryResult } from "@/types/queryTab";
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
 import QueryConsole from "@/components/workspace/QueryConsole.vue";
@@ -74,8 +74,11 @@ const editorHeight = ref(45);
 
 const queryTabsStore = useQueryTabsStore();
 
+
+
 async function executeQuery(id: string, sql: string) {
-    console.log("executing sql query ", sql);
+    console.log("executing sql query", sql);
+
     const tab = queryTabsStore.tabs.find((tab) => tab.id === id);
 
     if (!tab || !tab.sql.trim()) {
@@ -83,46 +86,42 @@ async function executeQuery(id: string, sql: string) {
     }
 
     queryTabsStore.setLoading(id, true);
+
     try {
-      await DbService.ExecuteQuery(sql)
-      // TODO: Handle result and set it in the store
+        const response = await DbService.ExecuteQuery(sql);
+
+        console.log("query response", response);
+
+        if (!response) {
+            throw new Error("Query returned no response");
+        }
+
+        const result: QueryResult = {
+            Duration: response.duration ?? 0,
+
+            Columns: (response.columns ?? []).map((column) => ({
+                Name: column.name,
+            })),
+
+            Rows: (response.rows ?? []).map(
+                (row) =>
+                    (row ?? []).map(
+                        (value) => value ?? "",
+                    ),
+            ),
+        };
+
+        queryTabsStore.setResult(id, result);
     } catch (error) {
         queryTabsStore.setError(
             id,
-            error instanceof Error ? error.message : "Query execution failed",
+            error instanceof Error
+                ? error.message
+                : "Query execution failed",
         );
     } finally {
         queryTabsStore.setLoading(id, false);
     }
-
-    // try {
-    //     // Temporary dummy execution.
-    //     // Replace this with DbService later.
-        
-
-    //     await new Promise((resolve) => setTimeout(resolve, 500));
-
-    //     queryTabsStore.setResult(id, {
-    //         Duration: 8,
-
-    //         Columns: [
-    //             { Name: "actor_id" },
-    //             { Name: "first_name" },
-    //             { Name: "last_name" },
-    //         ],
-
-    //         Rows: [
-    //             [1, "PENELOPE", "GUINESS"],
-    //             [2, "NICK", "WAHLBERG"],
-    //             [3, "ED", "CHASE"],
-    //         ],
-    //     });
-    // } catch (error) {
-    //     queryTabsStore.setError(
-    //         id,
-    //         error instanceof Error ? error.message : "Query execution failed",
-    //     );
-    // }
 }
 
 function handleDisconnect() {
