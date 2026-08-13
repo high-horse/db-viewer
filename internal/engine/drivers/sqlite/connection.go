@@ -11,7 +11,7 @@ import (
 	_"modernc.org/sqlite"
 )
 
-type Connecion struct {
+type Connection struct {
 	config entities.ConnectionConfig
 
 	transport transports.Transport
@@ -20,35 +20,35 @@ type Connecion struct {
 	connected bool
 }
 
-func New(config entities.ConnectionConfig, transport transports.Transport) *Connecion {
-	return &Connecion{
+func New(config entities.ConnectionConfig, transport transports.Transport) *Connection {
+	return &Connection{
 		config:    config,
 		transport: transport,
 		connected: false,
 	}
 }
 
-func (c *Connecion) ID() string {
+func (c *Connection) ID() string {
 	return c.config.ID
 }
 
-func (c *Connecion) Name() string {
+func (c *Connection) Name() string {
 	return c.config.Name
 }
 
-func (c *Connecion) DatabaseName() string {
+func (c *Connection) DatabaseName() string {
 	return c.config.Database
 }
 
-func (c *Connecion) Type() string {
+func (c *Connection) Type() string {
 	return string(entities.DialectSQLite)
 }
 
-func (c *Connecion) DB() *sql.DB {
+func (c *Connection) DB() *sql.DB {
 	return c.db
 }
 
-func (c *Connecion) dsn() string {
+func (c *Connection) dsn() string {
 	u, err := url.Parse("file:" + c.config.Database)
 	if err != nil {
 		return "file:" + c.config.Database + "?_journal_mode=WAL&_foreign_keys=on"
@@ -60,7 +60,7 @@ func (c *Connecion) dsn() string {
 	return u.String()
 }
 
-func (c *Connecion) Connect(ctx context.Context) error {
+func (c *Connection) Connect(ctx context.Context) error {
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (c *Connecion) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (c *Connecion) Disconnect() error {
+func (c *Connection) Disconnect() error {
 	if !c.connected {
 		return nil
 	}
@@ -96,7 +96,7 @@ func (c *Connecion) Disconnect() error {
 	return err
 }
 
-func (c *Connecion) Ping(ctx context.Context) error {
+func (c *Connection) Ping(ctx context.Context) error {
 	if !c.connected {
 		return fmt.Errorf("not connected")
 	}
@@ -106,6 +106,10 @@ func (c *Connecion) Ping(ctx context.Context) error {
 	return c.db.PingContext(ctx)
 }
 
-func (c *Connecion) IsConnected() bool {
+func (c *Connection) IsConnected() bool {
 	return c.connected
+}
+
+func (c *Connection) Config() entities.ConnectionConfig {
+	return c.config
 }

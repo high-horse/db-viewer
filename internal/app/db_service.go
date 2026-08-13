@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"db-viewer/internal/db"
 	manager "db-viewer/internal/engine/connectionManager"
 	"db-viewer/internal/engine/drivers/mysql"
@@ -10,6 +11,7 @@ import (
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/factory"
 	"db-viewer/internal/engine/transports"
+	"db-viewer/internal/types"
 	"fmt"
 	"strconv"
 	"time"
@@ -66,6 +68,32 @@ func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfi
 	}
 
 	return true, nil
+}
+
+
+func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
+	conn, ok := s.manager.GetActiveConnection()
+	if !ok {
+		return types.Connection{}, false
+	}
+	
+	id, err := strconv.Atoi(conn.ID())
+	if err != nil {
+		return types.Connection{}, false
+	}
+
+	config := conn.Config()
+	return types.Connection{
+		Id:       id,
+		Host:     config.Host,
+		Port: sql.NullInt64{
+			Int64: int64(config.Port),
+			Valid: true,
+		},
+		Name:     conn.Name(),
+		DBName:   conn.DatabaseName(),
+		Driver:   conn.Type(),
+	}, true
 }
 
 func (s *DbService) Disconnect(ctx context.Context, connID string) error {
@@ -130,6 +158,7 @@ func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entitie
 
 	_ = parsed
 	historyEntry.Duration = int(result.Duration)
+	result.Duration = time.Duration(result.Duration.Milliseconds())
 
 	go func() {
 		_ = s.historyRepo.Log(ctx, historyEntry)
