@@ -33,9 +33,9 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 	}
 }
 
-func (s *DbService) Connect( ctx context.Context, config entities.ConnectionConfig) (bool, error) {
+func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
 
-	transport := transports.NewDirect( config.Host, config.Port)
+	transport := transports.NewDirect(config.Host, config.Port)
 
 	conn, err := s.factory.Create(
 		ctx,
@@ -64,15 +64,15 @@ func (s *DbService) Connect( ctx context.Context, config entities.ConnectionConf
 		_ = s.manager.Remove(conn.ID())
 		return false, fmt.Errorf("failed to set active connection: %w", err)
 	}
-	
+
 	return true, nil
 }
 
-func (s *DbService) Disconnect( ctx context.Context, connID string) error {
+func (s *DbService) Disconnect(ctx context.Context, connID string) error {
 	return s.manager.Remove(connID)
 }
 
-func (s *DbService) InspectDatabase( ctx context.Context) ([]entities.InspectTableInfo, error) {
+func (s *DbService) InspectDatabase(ctx context.Context) ([]entities.InspectTableInfo, error) {
 	conn, ok := s.manager.Active()
 	if !ok {
 		return nil, fmt.Errorf("active connection not found")
@@ -86,7 +86,7 @@ func (s *DbService) InspectDatabase( ctx context.Context) ([]entities.InspectTab
 	return driver.Inspector().ListTables(ctx, conn)
 }
 
-func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entities.QueryResult, error) {
+func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entities.QueryResult, error) {
 	conn, ok := s.manager.Active()
 	if !ok {
 		return nil, fmt.Errorf("active connection not found")
@@ -105,7 +105,7 @@ func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entiti
 	result, err := driver.Executor().Execute(
 		ctx,
 		conn,
-		rawQuery,
+		parsed.RawSQL,
 	)
 
 	historyEntry := db.QueryHistoryEntity{
@@ -127,6 +127,7 @@ func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entiti
 		_ = s.historyRepo.Log(ctx, historyEntry)
 	}()
 
+	fmt.Println("executed ", len(result.Rows))
 	return result, nil
 }
 
@@ -168,7 +169,6 @@ func (s *DbService) GetQueryHistory(ctx context.Context, limit int, since time.T
 	return s.historyRepo.GetHistory(ctx, limit, since)
 }
 
-
 func (s *DbService) SaveAndConnect(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
 	newID, err := db.StoreConnection(config)
 	if err != nil {
@@ -185,5 +185,3 @@ func (s *DbService) GetActiveConnection() (string, error) {
 	}
 	return conn.ID(), nil
 }
-
-

@@ -20,7 +20,7 @@ func (p *Parser) Parse(sql string) (*entities.SQLQueryEntity, error) {
 	}
 
 	return &entities.SQLQueryEntity{
-		RawSQL:        sql,
+		RawSQL:        queryParaser.PaginatedSQLStmt(sql, 50),
 		Dialect:       entities.DialectPostgreSQL,
 		StatementType: queryParaser.ExtractStatementType(sql),
 	}, nil

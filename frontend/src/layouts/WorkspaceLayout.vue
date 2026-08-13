@@ -84,12 +84,15 @@ async function executeQuery(id: string, sql: string) {
 
     queryTabsStore.setLoading(id, true);
     try {
-      DbService.ExecuteQuery(sql)
+      await DbService.ExecuteQuery(sql)
+      // TODO: Handle result and set it in the store
     } catch (error) {
         queryTabsStore.setError(
             id,
             error instanceof Error ? error.message : "Query execution failed",
         );
+    } finally {
+        queryTabsStore.setLoading(id, false);
     }
 
     // try {
