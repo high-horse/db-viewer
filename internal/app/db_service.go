@@ -141,7 +141,6 @@ func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entitie
 	)
 
 
-
 	historyEntry := db.QueryHistoryEntity{
 		ConnectionId: conn.ID(),
 		DatabaseName: conn.DatabaseName(),

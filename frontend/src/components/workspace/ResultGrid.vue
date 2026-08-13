@@ -71,9 +71,16 @@
                             class="column-header"
                         >
                             {{ col.label }}
-                            <span class="text-grey text-[8px]">{{ col.Type}}</span>
-
+                            
+                            <span
+                                v-if="col.name !== 'sn'"
+                                class="text-grey text-[8px]"
+                            >
+                                {{ col.Type }}
+                            </span>
+                            
                             <q-tooltip
+                                v-if="col.name !== 'sn'"
                                 anchor="bottom middle"
                                 self="top middle"
                                 :offset="[0, 6]"
@@ -126,18 +133,27 @@ const mappedColumns = computed<QTableColumn[]>(() => {
         return [];
     }
 
-    return props.result.Columns.map((column) => ({
-        name: column.Name,
-        label: column.Name,
-        field: column.Name,
-        align: "left" as const,
-        sortable: true,
+    return [
+        {
+            name: "sn",
+            label: "",
+            field: "__sn",
+            align: "left" as const,
+            sortable: false,
+        },
 
-        // Keep the original column metadata
-        Type: column.Type,
-        Nullable: column?.Nullable,
-        DefaultValue: column?.DefaultValue,
-    }));
+        ...props.result.Columns.map((column) => ({
+            name: column.Name,
+            label: column.Name,
+            field: column.Name,
+            align: "left" as const,
+            sortable: true,
+
+            Type: column.Type,
+            Nullable: column.Nullable,
+            DefaultValue: column.DefaultValue,
+        })),
+    ];
 });
 
 const mappedRows = computed(() => {
@@ -147,7 +163,8 @@ const mappedRows = computed(() => {
 
     return props.result.Rows.map((row, rowIndex) => {
         const rowObject = {
-            id: rowIndex,
+          id: rowIndex,
+             __sn: rowIndex + 1,
         } as Record<string, string | number>;
 
         props.result!.Columns.forEach((column, columnIndex) => {
