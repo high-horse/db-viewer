@@ -97,7 +97,10 @@ func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entiti
 		return nil, err
 	}
 
-	// parsed, err := driver.Parser
+	parsed, err := driver.Parser().Parse(rawQuery)
+	if err != nil {
+		return nil, fmt.Errorf("query parsing error: %w", err)
+	}
 
 	result, err := driver.Executor().Execute(
 		ctx,
@@ -117,6 +120,7 @@ func (s *DbService) ExecuteQuery( ctx context.Context, rawQuery string) (*entiti
 		return nil, fmt.Errorf("SQL execution evaluation error: %w", err)
 	}
 
+	_ = parsed
 	historyEntry.Duration = int(result.Duration)
 
 	go func() {
