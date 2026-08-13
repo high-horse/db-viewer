@@ -1,19 +1,18 @@
 <template>
     <div class="h-full flex flex-col bg-[#100e0c]">
-        <!-- Header -->
         <div
             class="h-8 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-3 text-[11px] font-mono text-[#6b7280]"
         >
             <div class="flex items-center gap-3">
                 <span>RESULT GRID</span>
-
+        
                 <span
                     v-if="result && !loading"
                     class="text-teal-400 font-bold"
                 >
                     • {{ result.Rows.length }} rows fetched
                 </span>
-
+        
                 <span
                     v-if="loading"
                     class="text-amber-400 font-bold"
@@ -21,13 +20,28 @@
                     • Executing...
                 </span>
             </div>
-
-            <span
-                v-if="result && !loading"
-                class="text-[#6b7280]"
-            >
-                {{ result.Duration }}ms execution latency
-            </span>
+        
+            <div class="flex items-center gap-3">
+                <span
+                    v-if="result && !loading"
+                    class="text-[#6b7280]"
+                >
+                    {{ result.Duration }}ms execution latency
+                </span>
+        
+                <!-- Close result grid -->
+                <button
+                    type="button"
+                    class="w-5 h-5 flex items-center justify-center rounded text-[#4b4540] hover:text-[#d1d5db] hover:bg-[#292521] transition-colors"
+                    title="Hide results"
+                    @click="emit('close')"
+                >
+                    <q-icon
+                        name="close"
+                        size="14px"
+                    />
+                </button>
+            </div>
         </div>
 
         <!-- Error -->
@@ -35,11 +49,7 @@
             v-if="error"
             class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#100e0c]"
         >
-            <q-icon
-                name="error_outline"
-                size="32px"
-                class="text-red-400"
-            />
+            <q-icon name="error_outline" size="32px" class="text-red-400" />
 
             <div
                 class="text-xs text-red-300 font-mono max-w-xl text-center px-6"
@@ -53,10 +63,7 @@
             v-else-if="loading"
             class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#100e0c]"
         >
-            <q-spinner-dots
-                color="amber"
-                size="32px"
-            />
+            <q-spinner-dots color="amber" size="32px" />
 
             <span class="text-xs text-[#6b7280] font-mono">
                 Executing query...
@@ -108,7 +115,7 @@
                                 class="column-tooltip"
                             >
                                 <div class="font-mono text-[10px]">
-                                    <div class="mt-1 ">
+                                    <div class="mt-1">
                                         {{ col.Type }}
                                         |
                                         {{
@@ -161,11 +168,7 @@
             v-else
             class="flex-grow flex flex-col justify-center items-center gap-3 bg-[#100e0c] text-[#4b4540]"
         >
-            <q-icon
-                name="table_rows"
-                size="32px"
-                class="opacity-40"
-            />
+            <q-icon name="table_rows" size="32px" class="opacity-40" />
 
             <span class="text-xs tracking-wider">
                 Execute a statement query to inspect structural rows
@@ -183,6 +186,10 @@ const props = defineProps<{
     result: QueryResult | null;
     loading?: boolean;
     error?: string | null;
+}>();
+
+const emit = defineEmits<{
+    close: [];
 }>();
 
 const mappedColumns = computed<QTableColumn[]>(() => {
@@ -231,7 +238,6 @@ const mappedRows = computed(() => {
     });
 });
 </script>
-
 
 <style scoped>
 .data-explorer-grid :deep(.q-table__card) {

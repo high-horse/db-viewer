@@ -2,56 +2,110 @@
     <div
         class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-none"
     >
-        <!-- Header -->
         <WorkspaceHeader @disconnect="handleDisconnect" />
 
-        <!-- Workspace -->
-        <div class="grow flex relative">
+        <div class="grow flex relative min-w-0 min-h-0 overflow-hidden">
             <q-splitter
                 v-model="sidebarWidth"
                 :limits="[15, 35]"
-                class="absolute-full"
+                class="absolute-full min-w-0 min-h-0"
             >
                 <!-- LEFT SIDEBAR -->
                 <template #before>
-                    <SchemaSidebar />
+                    <div class="h-full min-w-0 overflow-hidden">
+                        <SchemaSidebar />
+                    </div>
                 </template>
 
                 <!-- MAIN -->
                 <template #after>
-                    <q-splitter
-                        v-model="editorHeight"
-                        horizontal
-                        :limits="[20, 80]"
-                        class="h-full"
-                    >
-                        <!-- QUERY CONSOLE -->
-                        <template #before>
+                    <div class="h-full min-w-0 min-h-0 overflow-hidden">
+                        <q-splitter
+                            v-if="showResults"
+                            v-model="editorHeight"
+                            horizontal
+                            :limits="[20, 80]"
+                            class="h-full min-w-0 min-h-0"
+                        >
+                            <!-- QUERY CONSOLE -->
+                            <template #before>
+                                <div class="h-full min-w-0 min-h-0 overflow-hidden">
+                                    <QueryConsole
+                                        :tabs="queryTabsStore.tabs"
+                                        :active-tab-id="
+                                            queryTabsStore.activeTabId
+                                        "
+                                        :active-tab="
+                                            queryTabsStore.activeTab
+                                        "
+                                        @create-tab="
+                                            queryTabsStore.createTab()
+                                        "
+                                        @select-tab="
+                                            queryTabsStore.selectTab
+                                        "
+                                        @close-tab="
+                                            queryTabsStore.closeTab
+                                        "
+                                        @update-sql="
+                                            queryTabsStore.updateSql
+                                        "
+                                        :on-execute="executeQuery"
+                                    />
+                                </div>
+                            </template>
+
+                            <!-- RESULTS -->
+                            <template #after>
+                                <div class="h-full min-w-0 min-h-0 overflow-hidden">
+                                    <ResultGrid
+                                        :result="
+                                            queryTabsStore.activeTab?.result ??
+                                            null
+                                        "
+                                        :loading="
+                                            queryTabsStore.activeTab?.loading ??
+                                            false
+                                        "
+                                        :error="
+                                            queryTabsStore.activeTab?.error ??
+                                            null
+                                        "
+                                        @close="hideResults"
+                                    />
+                                </div>
+                            </template>
+                        </q-splitter>
+
+                        <!-- Query only -->
+                        <div
+                            v-else
+                            class="h-full w-full min-w-0 min-h-0 overflow-hidden"
+                        >
                             <QueryConsole
                                 :tabs="queryTabsStore.tabs"
-                                :active-tab-id="queryTabsStore.activeTabId"
-                                :active-tab="queryTabsStore.activeTab"
-                                @create-tab="queryTabsStore.createTab()"
-                                @select-tab="queryTabsStore.selectTab"
-                                @close-tab="queryTabsStore.closeTab"
-                                @update-sql="queryTabsStore.updateSql"
+                                :active-tab-id="
+                                    queryTabsStore.activeTabId
+                                "
+                                :active-tab="
+                                    queryTabsStore.activeTab
+                                "
+                                @create-tab="
+                                    queryTabsStore.createTab()
+                                "
+                                @select-tab="
+                                    queryTabsStore.selectTab
+                                "
+                                @close-tab="
+                                    queryTabsStore.closeTab
+                                "
+                                @update-sql="
+                                    queryTabsStore.updateSql
+                                "
                                 :on-execute="executeQuery"
                             />
-                        </template>
-
-                        <!-- RESULTS -->
-                        <template #after>
-                            <ResultGrid
-                                :result="
-                                    queryTabsStore.activeTab?.result ?? null
-                                "
-                                :loading="
-                                    queryTabsStore.activeTab?.loading ?? false
-                                "
-                                :error="queryTabsStore.activeTab?.error ?? null"
-                            />
-                        </template>
-                    </q-splitter>
+                        </div>
+                    </div>
                 </template>
             </q-splitter>
         </div>
@@ -77,9 +131,14 @@ import { useConnectionStore } from "@/stores/connectionStore";
 const sidebarWidth = ref(20);
 const editorHeight = ref(45);
 
+const showResults = ref(true);
 const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
 const { activeConnection, activeConnectionMetadata } = storeToRefs(connectionStore);
+
+function hideResults() {
+    showResults.value = false;
+}
 
 async function executeQuery(id: string, sql: string) {
     console.log("executing sql query", sql);
@@ -89,6 +148,7 @@ async function executeQuery(id: string, sql: string) {
     if (!tab || !tab.sql.trim()) {
         return;
     }
+    showResults.value = true;
 
     queryTabsStore.setLoading(id, true);
 
@@ -170,3 +230,17 @@ onMounted(() => {
 });
 
 </script>
+
+
+<style scoped>
+:deep(.q-splitter) {
+    min-width: 0;
+    min-height: 0;
+}
+
+:deep(.q-splitter__panel) {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+</style>
