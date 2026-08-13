@@ -92,34 +92,34 @@ async function executeQuery(id: string, sql: string) {
         );
     }
 
-    try {
-        // Temporary dummy execution.
-        // Replace this with DbService later.
+    // try {
+    //     // Temporary dummy execution.
+    //     // Replace this with DbService later.
         
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+    //     await new Promise((resolve) => setTimeout(resolve, 500));
 
-        queryTabsStore.setResult(id, {
-            Duration: 8,
+    //     queryTabsStore.setResult(id, {
+    //         Duration: 8,
 
-            Columns: [
-                { Name: "actor_id" },
-                { Name: "first_name" },
-                { Name: "last_name" },
-            ],
+    //         Columns: [
+    //             { Name: "actor_id" },
+    //             { Name: "first_name" },
+    //             { Name: "last_name" },
+    //         ],
 
-            Rows: [
-                [1, "PENELOPE", "GUINESS"],
-                [2, "NICK", "WAHLBERG"],
-                [3, "ED", "CHASE"],
-            ],
-        });
-    } catch (error) {
-        queryTabsStore.setError(
-            id,
-            error instanceof Error ? error.message : "Query execution failed",
-        );
-    }
+    //         Rows: [
+    //             [1, "PENELOPE", "GUINESS"],
+    //             [2, "NICK", "WAHLBERG"],
+    //             [3, "ED", "CHASE"],
+    //         ],
+    //     });
+    // } catch (error) {
+    //     queryTabsStore.setError(
+    //         id,
+    //         error instanceof Error ? error.message : "Query execution failed",
+    //     );
+    // }
 }
 
 function handleDisconnect() {
