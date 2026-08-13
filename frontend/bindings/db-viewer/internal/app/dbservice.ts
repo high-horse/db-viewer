@@ -11,6 +11,9 @@ import * as db$0 from "../db/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as entities$0 from "../engine/entities/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as types$0 from "../types/models.js";
 
 export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(1396630503, config);
@@ -26,6 +29,10 @@ export function ExecuteQuery(rawQuery: string): $CancellablePromise<entities$0.Q
 
 export function GetActiveConnection(): $CancellablePromise<string> {
     return $Call.ByID(123274639);
+}
+
+export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connection, boolean]> {
+    return $Call.ByID(1493165516);
 }
 
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {

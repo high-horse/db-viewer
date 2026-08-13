@@ -71,6 +71,7 @@
                             class="column-header"
                         >
                             {{ col.label }}
+                            <span class="text-grey text-[8px]">{{ col.Type}}</span>
 
                             <q-tooltip
                                 anchor="bottom middle"
@@ -84,17 +85,8 @@
                                     </div>
 
                                     <div class="mt-1">
-                                        <span class="text-[#6b7280]"
-                                            >Type:</span
-                                        >
-                                        {{ col.databaseType || "Unknown" }}
-                                    </div>
-
-                                    <div>
-                                        <span class="text-[#6b7280]"
-                                            >Default:</span
-                                        >
-                                        {{ col.defaultValue ?? "NULL" }}
+                                        {{ col.Type }} | {{ col.Nullable ? "Nullable" : "Not Nullable" }}
+                                        {{ col.DefaultValue ? ` | Default: ${col.DefaultValue}` : "" }}
                                     </div>
                                 </div>
                             </q-tooltip>
@@ -128,6 +120,7 @@ const props = defineProps<{
     error?: string | null;
 }>();
 
+
 const mappedColumns = computed<QTableColumn[]>(() => {
     if (!props.result?.Columns) {
         return [];
@@ -139,6 +132,11 @@ const mappedColumns = computed<QTableColumn[]>(() => {
         field: column.Name,
         align: "left" as const,
         sortable: true,
+
+        // Keep the original column metadata
+        Type: column.Type,
+        Nullable: column?.Nullable,
+        DefaultValue: column?.DefaultValue,
     }));
 });
 

@@ -1,6 +1,8 @@
 export interface QueryColumn {
   Name: string;
   Type?: string;
+  Nullable?: boolean;
+  DefaultValue?: string | number;
 }
 
 
