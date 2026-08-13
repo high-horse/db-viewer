@@ -10,15 +10,16 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
-
+import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
-import { nord } from '@fsegurai/codemirror-theme-nord'
-import { materialDark } from '@fsegurai/codemirror-theme-material-dark'
+import { nord } from "@fsegurai/codemirror-theme-nord";
+import { materialDark } from "@fsegurai/codemirror-theme-material-dark";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { autocompletion } from "@codemirror/autocomplete";
 
 const props = defineProps<{
-  modelValue: string;
-  dbDriver: "pgx" | "mysql" | "sqlite";
+    modelValue: string;
+    dbDriver: "pgx" | "mysql" | "sqlite";
 }>();
 
 const emit = defineEmits<{
@@ -32,18 +33,17 @@ let editorView: EditorView | null = null;
 const sqlDialect = new Compartment();
 
 function getDialect(driver: string) {
-  switch (driver) {
-    case "pgx":
-      return PostgreSQL;
-    case "mysql":
-      return MySQL;
-    case "sqlite":
-      return SQLite;
-    default:
-      return PostgreSQL;
-  }
+    switch (driver) {
+        case "pgx":
+            return PostgreSQL;
+        case "mysql":
+            return MySQL;
+        case "sqlite":
+            return SQLite;
+        default:
+            return PostgreSQL;
+    }
 }
-
 
 function sqlSyntaxLinter(view: EditorView): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
@@ -64,6 +64,49 @@ function sqlSyntaxLinter(view: EditorView): Diagnostic[] {
     return diagnostics;
 }
 
+function getCurrentQuery(view: EditorView): string | null {
+    const { from, to, head } = view.state.selection.main;
+
+    // 1. If user has selected text, execute the selection
+    if (from !== to) {
+        const selected = view.state.doc.sliceString(from, to).trim();
+        return selected || null;
+    }
+
+    // 2. Use the syntax tree to find the Statement at cursor
+    const tree = syntaxTree(view.state);
+    const statements = tree.topNode.getChildren("Statement");
+
+    for (const stmt of statements) {
+        if (head >= stmt.from && head <= stmt.to) {
+            view.dispatch({
+                selection: EditorSelection.range(stmt.from, stmt.to),
+            });
+            return (
+                view.state.doc.sliceString(stmt.from, stmt.to).trim() || null
+            );
+        }
+    }
+
+    // 3. Cursor is between statements (e.g. blank line). Optional: pick nearest.
+    // Uncomment below if you want "run nearest" instead of "do nothing".
+    /*
+  let nearest: (typeof statements)[0] | null = null;
+  let minDist = Infinity;
+  for (const stmt of statements) {
+    const dist = Math.min(Math.abs(head - stmt.from), Math.abs(head - stmt.to));
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = stmt;
+    }
+  }
+  if (nearest && minDist <= 2) {
+    return view.state.doc.sliceString(nearest.from, nearest.to).trim() || null;
+  }
+  */
+
+    return null;
+}
 
 onMounted(() => {
     if (!editorContainer.value) {
@@ -76,20 +119,25 @@ onMounted(() => {
         extensions: [
             // SQL syntax highlighting
             sqlDialect.of(
-              sql({
-                  dialect: getDialect(props.dbDriver),
-              }),
+                sql({
+                    dialect: getDialect(props.dbDriver),
+                    upperCaseKeywords: true,
+                }),
             ),
-            
 
+            autocompletion({
+                activateOnTyping: true, // show suggestions as you type
+                defaultKeymap: true, // Ctrl+Space to force-open
+                closeOnBlur: true,
+            }),
             linter(sqlSyntaxLinter, {
                 delay: 300,
             }),
             // Dark editor theme
-            
+
             materialDark, // oneDark, // nord,
             // Basic editing
-            // 
+            //
             keymap.of([...defaultKeymap, indentWithTab]),
 
             // Custom styling
@@ -145,38 +193,25 @@ onMounted(() => {
 
                 emit("update:modelValue", update.state.doc.toString());
             }),
-
-            // Ctrl/Cmd + Enter → execute
-            // keymap.of([
-            //     {
-            //         key: "Mod-Enter",
-
-            //         run: () => {
-            //             emit("execute");
-            //             return true;
-            //         },
-            //     },
-            // ]),
             Prec.highest(
                 keymap.of([
                     {
                         key: "Mod-Enter",
-            
+
                         run: () => {
-                            const sql = editorView?.state.doc.toString() ?? "";
-            
-                            if (!sql.trim()) {
+                            if (!editorView) return true;
+
+                            const sql = getCurrentQuery(editorView);
+                            if (!sql) {
                                 return true;
                             }
-            
+
                             console.log("Executing SQL:", sql);
-            
                             emit("execute", sql);
-            
                             return true;
                         },
                     },
-                ])
+                ]),
             ),
         ],
     });
