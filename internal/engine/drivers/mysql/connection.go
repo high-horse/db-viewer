@@ -132,3 +132,7 @@ func (c *Connection) Ping(ctx context.Context) error {
 func (c *Connection) IsConnected() bool {
 	return c.connected
 }
+
+func (c *Connection) Config() entities.ConnectionConfig {
+	return c.config
+}

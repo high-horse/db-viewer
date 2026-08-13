@@ -2,11 +2,12 @@ package manager
 
 import (
 	"context"
-	"sync"
 	"database/sql"
+	"db-viewer/internal/engine/entities"
+	"sync"
 
-	"go.mongodb.org/mongo-driver/mongo"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Manager interface {
@@ -28,6 +29,7 @@ type Connection interface {
 	Disconnect() error
 	Ping(ctx context.Context) error
 	IsConnected() bool
+	Config() entities.ConnectionConfig
 }
 
 type SQLConnection interface {
@@ -152,6 +154,13 @@ func (m *ConnectionManager) Active() (Connection, bool) {
 	if m.activeID == "" {
 		return nil, false
 	}
+	conn, ok := m.connections[m.activeID]
+	return conn, ok
+}
+
+func (m *ConnectionManager) GetActiveConnection() (Connection, bool) {
+	m.rw.RLock()
+	defer m.rw.RUnlock()
 	conn, ok := m.connections[m.activeID]
 	return conn, ok
 }
