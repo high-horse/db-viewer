@@ -59,7 +59,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import { DbService } from "@bindings/db-viewer/internal/app";
 import type { QueryResult } from "@/types/queryTab";
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
@@ -67,14 +69,17 @@ import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
 import QueryConsole from "@/components/workspace/QueryConsole.vue";
 import ResultGrid from "@/components/workspace/ResultGrid.vue";
 
+
+const $router = useRouter();
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 
 const sidebarWidth = ref(20);
 const editorHeight = ref(45);
 
 const queryTabsStore = useQueryTabsStore();
-
-
+const connectionStore = useConnectionStore();
+const { activeConnection } = storeToRefs(connectionStore);
 
 async function executeQuery(id: string, sql: string) {
     console.log("executing sql query", sql);
@@ -100,7 +105,10 @@ async function executeQuery(id: string, sql: string) {
             Duration: response.duration ?? 0,
 
             Columns: (response.columns ?? []).map((column) => ({
-                Name: column.name,
+              Name: column.name,
+              Type: column.databaseType,
+              Nullable: column.nullable,
+              DefaultValue: column.defaultValue,
             })),
 
             Rows: (response.rows ?? []).map(
@@ -124,7 +132,32 @@ async function executeQuery(id: string, sql: string) {
     }
 }
 
-function handleDisconnect() {
-    console.log("Disconnect");
+async function handleDisconnect() {
+  const session = connectionStore.getActiveSession();
+  console.log("disconnecting", session, connectionStore.getActiveSession());
+  if (session) {
+    await DbService.Disconnect(String(session.id));
+    connectionStore.clearActiveSession();
+    $router.push({name: 'Welcome'});
+  }
 }
+async function setActiveSession() {
+  try {
+    const [session, exist] = await DbService.GetActiveConnectionObject();
+    console.log("active session", session, exist);
+    if (exist && session) {
+      connectionStore.setActiveSession(session);
+    } else {
+      console.log("no active session");
+    }
+  } catch (error) {
+    console.error("failed to set active session", error);
+  }
+}
+
+onMounted(() => {
+  if(activeConnection.value) return;
+  setActiveSession();
+});
+
 </script>

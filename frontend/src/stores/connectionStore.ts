@@ -27,6 +27,11 @@ export const useConnectionStore = defineStore("connection", () => {
   function setActiveSession(session: Connection) {
     activeConnection.value = session;
   }
+
+  function getActiveSession() {
+    return activeConnection.value;
+  }
+  
   function clearActiveSession() {
     activeConnection.value = null;
   }
@@ -44,44 +49,6 @@ export const useConnectionStore = defineStore("connection", () => {
 
   // Shared mapper — used by both ping and connect so they can never drift apart.
   function toConfig(connection: Connection): ConnectionConfig {
-    console.log("sending config connection ",
-      {
-        ID: String(connection.id),
-        Name: connection.name,
-        Host: connection.host,
-        Port: Number(connection.port.Int64),
-        User: connection.user,
-        Password: connection.password,
-        Database: connection.dbname,
-        Type: connection.driver,
-        SSL: false,
-        SSHConfigID: connection.ssh_config_id?.Valid
-          ? Number(connection.ssh_config_id.Int64)
-          : null,
-        SSHConfig: connection.ssh_config?.id
-          ? {
-              ID: connection.ssh_config.id,
-              Name: connection.ssh_config.name,
-              Host: connection.ssh_config.host,
-              Port: Number(connection.ssh_config.port),
-              Username: connection.ssh_config.username,
-              AuthMethod: connection.ssh_config.auth_method,
-              PrivateKey: connection.ssh_config.private_key.Valid
-                ? connection.ssh_config.private_key.String
-                : "",
-              Passphrase: connection.ssh_config.passphrase.Valid
-                ? connection.ssh_config.passphrase.String
-                : "",
-              Password: connection.ssh_config.password.Valid
-                ? connection.ssh_config.password.String
-                : "",
-            }
-          : null,
-        InMemory: false,
-        ReadOnly: false,
-        Color: connection.color.Valid ? connection.color.String : "",
-      });
-    
     return {
       ID: String(connection.id),
       Name: connection.name,
@@ -176,6 +143,7 @@ export const useConnectionStore = defineStore("connection", () => {
     setSelectedSession,
     clearSelectedSession,
     setActiveSession,
+    getActiveSession,
     clearActiveSession,
     getConnections,
     pingConnection,

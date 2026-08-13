@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 
 import WelcomePage from './pages/WelcomePage.vue';
-import WorkSpacePage from './pages/WorkSpacePage.vue';
 import AuthLayout from './layouts/AuthLayout.vue';
 import WorkspaceLayout from './layouts/WorkspaceLayout.vue';
 
