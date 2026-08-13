@@ -89,25 +89,6 @@ func (c *Connection) Connect(ctx context.Context) error {
 	c.db = db
 	c.connected = true
 
-	var database, user, server, version string
-
-	err = db.QueryRow(`
-    SELECT
-        current_database(),
-        current_user,
-        inet_server_addr()::text,
-        version()
-	`).Scan(&database, &user, &server, &version)
-
-	if err != nil {
-		return fmt.Errorf("connection verification failed: %w", err)
-	}
-
-	fmt.Printf("DATABASE: %s\n", database)
-	fmt.Printf("USER: %s\n", user)
-	fmt.Printf("SERVER: %s\n", server)
-	fmt.Printf("VERSION: %s\n", version)
-
 	return nil
 }
 

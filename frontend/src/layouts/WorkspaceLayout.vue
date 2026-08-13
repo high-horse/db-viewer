@@ -156,8 +156,10 @@ async function setActiveSession() {
 }
 
 onMounted(() => {
-  if(activeConnection.value) return;
-  setActiveSession();
+  if (!activeConnection.value) {
+    setActiveSession();
+  };
+  
 });
 
 </script>

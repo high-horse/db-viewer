@@ -6,18 +6,23 @@
         <div
             class="p-3 border-b border-[#292521] flex justify-between items-center bg-[#161310]"
         >
-            <div class="flex items-center gap-2">
-                <q-icon
-                    name="account_tree"
-                    size="15px"
-                    class="text-amber-400"
-                />
+            <div class="flex items-center gap-2 min-w-0">
+                <q-icon name="storage" size="15px" class="text-amber-400" />
 
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-[#6b7280]"
-                >
-                    Schema Explorer
-                </span>
+                <div class="min-w-0">
+                    <div class="text-xs font-semibold text-white truncate">
+                        {{ activeConnection?.name }}
+                    </div>
+
+                    <div class="text-[10px] text-[#6b7280] truncate">
+                        <span class="font-bold">
+                            {{ activeConnection?.driver }}
+                        </span>
+                        ({{ activeConnection?.host }}:{{
+                            activeConnection?.port?.Int64
+                        }})
+                    </div>
+                </div>
             </div>
 
             <q-btn
@@ -32,23 +37,6 @@
             />
         </div>
 
-        <!-- Connection Information -->
-        <div class="px-3 py-2 border-b border-[#292521] bg-[#100e0c]">
-            <div class="flex items-center gap-2">
-                <q-icon name="storage" size="15px" class="text-amber-400" />
-
-                <div class="min-w-0">
-                    <div class="text-xs font-semibold text-white truncate">
-                        dvdrental
-                    </div>
-
-                    <div class="text-[10px] text-[#6b7280] truncate">
-                        PostgreSQL
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Schema Tree -->
         <q-scroll-area class="flex-grow p-2">
             <q-tree
@@ -56,46 +44,81 @@
                 node-key="id"
                 dark
                 no-connectors
-                class="text-xs"
+                dense
+                class="text-xs compact-tree"
             >
                 <template #default-header="prop">
                     <div
-                        class="flex items-center gap-2 py-1 px-1 rounded cursor-pointer group w-full hover:bg-[#231f1a]"
+                        class="flex items-center gap-1 py-[4px] px-1 rounded cursor-pointer group w-full hover:bg-[#231f1a] compact-tree-header"
                         @dblclick="handleNodeDoubleClick(prop.node)"
                     >
                         <q-icon
                             :name="prop.node.icon"
                             :color="prop.node.iconColor"
-                            size="14px"
+                            size="15px"
                         />
-
+            
                         <span
                             :class="
                                 prop.node.type === 'table'
                                     ? 'text-white font-medium'
-                                    : 'text-[#94a3b8]'
+                                    : prop.node.type === 'view'
+                                      ? 'text-blue-300'
+                                      : 'text-amber-300'
                             "
                         >
                             {{ prop.node.label }}
                         </span>
+                        <q-icon v-if="prop.node.type === 'view'" name="visibility" size="10px" >
+                            <q-tooltip>
+                                <span>View</span>
+                            </q-tooltip>
+                        </q-icon>
                     </div>
                 </template>
             </q-tree>
+
+            <!-- Empty state -->
+            <div
+                v-if="!schemaNodes.length && !loading"
+                class="flex flex-col items-center justify-center py-8 gap-2 text-[#4b4540]"
+            >
+                <q-icon name="table_rows" size="24px" />
+
+                <span class="text-[10px] font-mono">
+                    No tables found
+                </span>
+            </div>
         </q-scroll-area>
 
         <!-- Sidebar Footer -->
         <div
-            class="h-7 px-3 flex items-center border-t border-[#292521] bg-[#161310]"
+            class="h-7 px-3 flex items-center justify-between border-t border-[#292521] bg-[#161310]"
         >
-            <span class="text-[10px] text-[#4b4540] font-mono">
-                {{ tableCount }} tables
-            </span>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] text-[#4b4540] font-mono">
+                    {{ tableCount }} tables
+                </span>
+
+                <span class="text-[10px] text-[#4b4540] font-mono">
+                    {{ viewCount }} views
+                </span>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
+import { storeToRefs } from "pinia";
+import { useConnectionStore } from "@/stores/connectionStore";
+
+const connectionStore = useConnectionStore();
+
+const {
+    activeConnectionMetadata,
+    activeConnection,
+} = storeToRefs(connectionStore);
 
 interface SchemaNode {
     id: string;
@@ -113,63 +136,95 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 
-const schemaNodes = ref<SchemaNode[]>([
-    {
-        id: "db-root",
-        label: "dvdrental",
-        icon: "storage",
+/*
+ * Build the tree directly from activeConnectionMetadata.
+ *
+ * Backend data looks like:
+ *
+ * {
+ *   name: "actor",
+ *   type: "TABLE",
+ *   database: "dvdrental",
+ *   schema: "public",
+ *   rows: 200
+ * }
+ */
+const schemaNodes = computed<SchemaNode[]>(() => {
+    const metadata = activeConnectionMetadata.value;
+
+    if (!metadata || !Array.isArray(metadata)) {
+        return [];
+    }
+
+    // Group tables/views by schema
+    const schemas = new Map<string, any[]>();
+
+    metadata.forEach((item) => {
+        const schema = item.schema || "public";
+
+        if (!schemas.has(schema)) {
+            schemas.set(schema, []);
+        }
+
+        schemas.get(schema)!.push(item);
+    });
+
+    // Convert to q-tree nodes
+    return Array.from(schemas.entries()).map(([schema, objects]) => ({
+        id: `schema-${schema}`,
+        label: schema,
+        icon: "schema",
         iconColor: "amber-5",
-        children: [
-            {
-                id: "t1",
-                label: "actor",
-                icon: "table_chart",
-                iconColor: "amber-4",
-                type: "table",
-            },
-            {
-                id: "t2",
-                label: "customer",
-                icon: "table_chart",
-                iconColor: "amber-4",
-                type: "table",
-            },
-            {
-                id: "t3",
-                label: "film",
-                icon: "table_chart",
-                iconColor: "amber-4",
-                type: "table",
-            },
-            {
-                id: "t4",
-                label: "inventory",
-                icon: "table_chart",
-                iconColor: "amber-4",
-                type: "table",
-            },
-        ],
-    },
-]);
+        type: "schema",
+
+        children: objects.map((item) => {
+            const isView = item.type === "VIEW";
+
+            return {
+                id: `${schema}.${item.name}`,
+                label: item.name,
+
+                // Different icon for tables and views
+                icon: isView ? "view_list" : "table_chart",
+
+                // Different color for tables and views
+                iconColor: isView ? "blue-4" : "amber-4",
+
+                type: isView ? "view" : "table",
+            };
+        }),
+    }));
+});
 
 const tableCount = computed(() => {
-    return schemaNodes.value.reduce((count, node) => {
-        return (
-            count +
-            (node.children?.filter((child) => child.type === "table").length ??
-                0)
-        );
-    }, 0);
+    const metadata = activeConnectionMetadata.value;
+
+    if (!metadata || !Array.isArray(metadata)) {
+        return 0;
+    }
+
+    return metadata.filter(
+        (item) => item.type === "TABLE"
+    ).length;
+});
+
+const viewCount = computed(() => {
+    const metadata = activeConnectionMetadata.value;
+
+    if (!metadata || !Array.isArray(metadata)) {
+        return 0;
+    }
+
+    return metadata.filter(
+        (item) => item.type === "VIEW"
+    ).length;
 });
 
 async function refreshSchema() {
     loading.value = true;
 
     try {
-        // TODO:
-        // Load schema from DbService here.
-
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await connectionStore.setActiveConnectionMetadata();
 
         emit("refresh");
     } finally {
@@ -178,8 +233,14 @@ async function refreshSchema() {
 }
 
 function handleNodeDoubleClick(node: SchemaNode) {
-    if (node.type === "table") {
+    if (node.type === "table" || node.type === "view") {
         emit("selectTable", node);
     }
 }
+
+onMounted(() => {
+    if (!activeConnectionMetadata.value) {
+        connectionStore.setActiveConnectionMetadata();
+    }
+});
 </script>

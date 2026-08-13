@@ -5,16 +5,20 @@ import type { Connection } from "@bindings/db-viewer/internal/types";
 import { DbService } from "@bindings/db-viewer/internal/app";
 import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
 import { Notify } from "quasar";
+import type { InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
 
 export const useConnectionStore = defineStore("connection", () => {
   const selectedConnection = ref<Connection | null>(null);
   const activeConnection = ref<Connection | null>(null);
+  const activeConnectionMetadata = ref<InspectTableInfo[] | null>(null);
+  
   const connections = ref<Connection[]>([]);
   const showNewConnectionDialog = ref(false);
   const loadingStates = ref<Record<string, boolean>>({
     getConnections: false,
     saveConnection: false,
     connecting: false,
+    setActiveConnectionMetadata: false,
   });
   const isConnected = computed(() => activeConnection.value !== null);
 
@@ -133,6 +137,18 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
+  async function setActiveConnectionMetadata() {
+    try {
+      loadingStates.value.setActiveConnectionMetadata = true;
+      if (!activeConnection.value) return;
+      activeConnectionMetadata.value = await DbService.InspectDatabase();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      loadingStates.value.setActiveConnectionMetadata = false;
+    }
+  }
+
   return {
     selectedConnection,
     activeConnection,
@@ -140,6 +156,8 @@ export const useConnectionStore = defineStore("connection", () => {
     connections,
     loadingStates,
     showNewConnectionDialog,
+    activeConnectionMetadata,
+    
     setSelectedSession,
     clearSelectedSession,
     setActiveSession,
@@ -148,5 +166,6 @@ export const useConnectionStore = defineStore("connection", () => {
     getConnections,
     pingConnection,
     connectToSession,
+    setActiveConnectionMetadata,
   };
 });
