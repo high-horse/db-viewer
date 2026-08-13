@@ -61,7 +61,47 @@
                 }"
                 :virtual-scroll-item-size="28"
                 class="absolute-full data-explorer-grid"
-            />
+            >
+                <template #header="props">
+                    <q-tr :props="props">
+                        <q-th
+                            v-for="col in props.cols"
+                            :key="col.name"
+                            :props="props"
+                            class="column-header"
+                        >
+                            {{ col.label }}
+
+                            <q-tooltip
+                                anchor="bottom middle"
+                                self="top middle"
+                                :offset="[0, 6]"
+                                class="column-tooltip"
+                            >
+                                <div class="font-mono text-[11px]">
+                                    <div class="text-amber-400 font-bold">
+                                        {{ col.label }}
+                                    </div>
+
+                                    <div class="mt-1">
+                                        <span class="text-[#6b7280]"
+                                            >Type:</span
+                                        >
+                                        {{ col.databaseType || "Unknown" }}
+                                    </div>
+
+                                    <div>
+                                        <span class="text-[#6b7280]"
+                                            >Default:</span
+                                        >
+                                        {{ col.defaultValue ?? "NULL" }}
+                                    </div>
+                                </div>
+                            </q-tooltip>
+                        </q-th>
+                    </q-tr>
+                </template>
+            </q-table>
         </div>
 
         <div

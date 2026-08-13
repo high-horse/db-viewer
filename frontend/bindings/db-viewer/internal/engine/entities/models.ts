@@ -9,6 +9,7 @@ export interface ColumnInfo {
     "name": string;
     "databaseType": string;
     "nullable": boolean;
+    "defaultValue": string;
 }
 
 export interface ConnectionConfig {
