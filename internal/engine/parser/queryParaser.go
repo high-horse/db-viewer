@@ -2,6 +2,7 @@ package queryParaser
 
 import (
 	"db-viewer/internal/engine/entities"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -45,7 +46,34 @@ func ExtractStatementType(sql string) entities.StatementType {
 	}
 }
 
+func stripTrailingSemicolon(sql string) string {
+	sql = strings.TrimSpace(sql)
+	for strings.HasSuffix(sql, ";") {
+		sql = strings.TrimSuffix(sql, ";")
+		sql = strings.TrimSpace(sql)
+	}
+	return sql
+}
 
-func WrapSqlStmt() {
-	
+func WrapSqlStmt(sql string) string {
+	sql = stripTrailingSemicolon(sql)
+	return "SELECT * FROM (" + sql + ") AS subquery "
+}
+
+func CountSQLStmt(sql string) string {
+	sql = stripTrailingSemicolon(sql)
+	return "SELECT COUNT(*) FROM (" + sql + ") AS subquery"
+}
+
+func PaginatedSQLStmt(sql string, limit int) string {
+	if limit <= 0 {
+		limit = 50
+	}
+	limit = 10
+	sql = stripTrailingSemicolon(sql)
+	return fmt.Sprintf(
+		"SELECT * FROM (%s) AS subquery LIMIT %d",
+		sql,
+		limit,
+	)
 }

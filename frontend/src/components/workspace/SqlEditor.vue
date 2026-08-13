@@ -1,5 +1,5 @@
 <template>
-    <div ref="editorContainer" class="h-full w-full overflow-hidden" />
+     <div ref="editorContainer" class="h-full w-full overflow-hidden" /> 
 </template>
 
 <script setup lang="ts">
@@ -126,15 +126,15 @@ onMounted(() => {
             ),
 
             autocompletion({
-                activateOnTyping: true, // show suggestions as you type
+                activateOnTyping: false, // disable automatic completion to reduce CPU
                 defaultKeymap: true, // Ctrl+Space to force-open
                 closeOnBlur: true,
             }),
-            linter(sqlSyntaxLinter, {
-                delay: 300,
-            }),
+            // linter(sqlSyntaxLinter, {
+            //     delay: 300,
+            // }),
+            // 
             // Dark editor theme
-
             materialDark, // oneDark, // nord,
             // Basic editing
             //
