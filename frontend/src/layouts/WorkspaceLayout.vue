@@ -79,7 +79,7 @@ const editorHeight = ref(45);
 
 const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
-const { activeConnection } = storeToRefs(connectionStore);
+const { activeConnection, activeConnectionMetadata } = storeToRefs(connectionStore);
 
 async function executeQuery(id: string, sql: string) {
     console.log("executing sql query", sql);
@@ -141,12 +141,19 @@ async function handleDisconnect() {
     $router.push({name: 'Welcome'});
   }
 }
+
+
 async function setActiveSession() {
   try {
     const [session, exist] = await DbService.GetActiveConnectionObject();
     console.log("active session", session, exist);
     if (exist && session) {
       connectionStore.setActiveSession(session);
+      
+      if (!activeConnectionMetadata.value) {
+        connectionStore.setActiveConnectionMetadata();
+      }
+
     } else {
       console.log("no active session");
     }
