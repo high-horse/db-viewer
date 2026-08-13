@@ -176,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onBeforeMount, onBeforeUnmount } from "vue";
 import type { QueryTab } from "@/types/queryTab";
 import SqlEditor from "./SqlEditor.vue";
 
@@ -232,4 +232,30 @@ function executeActiveTab(sql: string) {
         sql,
     );
 }
+
+
+function handleCreateTabShortcut(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        createTab();
+    }
+}
+
+function handleCloseTabShortcut(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        closeTab(props.activeTabId ?? "");
+    }
+}
+
+onBeforeMount(() => {
+    window.addEventListener("keydown", handleCreateTabShortcut);
+    window.addEventListener("keydown", handleCloseTabShortcut);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleCreateTabShortcut);
+    window.removeEventListener("keydown", handleCloseTabShortcut);
+});
+
 </script>
