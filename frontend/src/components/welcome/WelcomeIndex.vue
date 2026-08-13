@@ -92,7 +92,7 @@
                             dense
                         />
 
-                        <div class="q-mt-md">
+                        <div class="q-mt-md" v-if="false">
                             <div class="text-caption text-grey-5 q-mb-sm">
                                 Connection Color
                             </div>

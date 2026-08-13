@@ -97,16 +97,22 @@ func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entitie
 		return nil, err
 	}
 
+	fmt.Println("before parsed query", rawQuery)
+	
 	parsed, err := driver.Parser().Parse(rawQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query parsing error: %w", err)
 	}
 
+	fmt.Println("parsed query", parsed.RawSQL)
+	
 	result, err := driver.Executor().Execute(
 		ctx,
 		conn,
 		parsed.RawSQL,
 	)
+
+
 
 	historyEntry := db.QueryHistoryEntity{
 		ConnectionId: conn.ID(),
@@ -119,6 +125,8 @@ func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entitie
 		historyEntry.Status = "ERROR"
 		return nil, fmt.Errorf("SQL execution evaluation error: %w", err)
 	}
+
+	fmt.Println("executed ", len(result.Rows))
 
 	_ = parsed
 	historyEntry.Duration = int(result.Duration)

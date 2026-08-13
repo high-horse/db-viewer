@@ -69,7 +69,7 @@ func PaginatedSQLStmt(sql string, limit int) string {
 	if limit <= 0 {
 		limit = 50
 	}
-	limit = 10
+	limit = 50
 	sql = stripTrailingSemicolon(sql)
 	return fmt.Sprintf(
 		"SELECT * FROM (%s) AS subquery LIMIT %d",

@@ -7,6 +7,7 @@ import (
 	"db-viewer/internal/engine/transports"
 	"fmt"
 	"log"
+	"strings"
 
 	// _ "github.com/lib/pq"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -54,17 +55,19 @@ func (c *Connection) dsn() string {
 	if host == "localfs" || host == "" {
 		host = c.config.Host
 	}
+	parts := []string{
+		fmt.Sprintf("host=%s", host),
+		fmt.Sprintf("port=%d", c.config.Port),
+		fmt.Sprintf("user=%s", c.config.User),
+		fmt.Sprintf("dbname=%s", c.config.Database),
+		"sslmode=disable",
+	}
 
-	log.Println("USER:", c.config.User)
-	log.Println("PASSWORD:", c.config.Password)
-	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host,
-		c.config.Port,
-		c.config.User,
-		c.config.Password,
-		c.config.Database,
-	)
+	if c.config.Password != "" {
+		parts = append(parts, fmt.Sprintf("password=%s", c.config.Password))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 func (c *Connection) Connect(ctx context.Context) error {
@@ -85,6 +88,25 @@ func (c *Connection) Connect(ctx context.Context) error {
 
 	c.db = db
 	c.connected = true
+
+	var database, user, server, version string
+
+	err = db.QueryRow(`
+    SELECT
+        current_database(),
+        current_user,
+        inet_server_addr()::text,
+        version()
+	`).Scan(&database, &user, &server, &version)
+
+	if err != nil {
+		return fmt.Errorf("connection verification failed: %w", err)
+	}
+
+	fmt.Printf("DATABASE: %s\n", database)
+	fmt.Printf("USER: %s\n", user)
+	fmt.Printf("SERVER: %s\n", server)
+	fmt.Printf("VERSION: %s\n", version)
 
 	return nil
 }
