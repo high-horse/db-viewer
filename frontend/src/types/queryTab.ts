@@ -12,11 +12,13 @@ export interface QueryResult {
   Rows: Array<Array<string | number>>;
 }
 
+export type QueryTabType = "query" | "result"
 export interface QueryTab {
   id: string;
   title: string;
+  type: QueryTabType;
+  
   sql: string;
-
   result: QueryResult | null;
 
   loading: boolean;

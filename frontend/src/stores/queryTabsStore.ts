@@ -5,7 +5,8 @@ import type { QueryTab, QueryResult } from "@/types/queryTab";
 const initialTab: QueryTab = {
   id: "query-1",
   title: "console_1.sql",
-
+  type: "query",
+  
   sql: "",
 
   result: null,
@@ -36,6 +37,30 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     const tab: QueryTab = {
       id,
       title: `console_${tabs.value.length + 1}.sql`,
+      type: "query",
+      sql: "",
+      result: null,
+      loading: false,
+      error: null,
+      dirty: false,
+      createdAt: Date.now(),
+      connectionId,
+    };
+
+    tabs.value.push(tab);
+
+    activeTabId.value = id;
+
+    return tab;
+  }
+
+  function createResultTab(title: string, connectionId?: string) {
+    const id = crypto.randomUUID();
+
+    const tab: QueryTab = {
+      id,
+      title,
+      type: "result",
       sql: "",
       result: null,
       loading: false,
@@ -136,6 +161,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTab,
 
     createTab,
+    createResultTab,
     selectTab,
     closeTab,
     updateSql,
