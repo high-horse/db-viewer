@@ -181,7 +181,9 @@ import type { QueryResult } from "@/types/queryTab";
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
 import QueryConsole from "@/components/workspace/QueryConsole.vue";
-import ResultGrid from "@/components/workspace/ResultGrid.vue";
+// import ResultGrid from "@/components/workspace/ResultGrid.vue";
+import ResultGrid from "@/components/workspace/resultGrid/ResultGrid.vue";
+
 import WorkspaceTabs from "@/components/workspace/WorkspaceTabs.vue";
 
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
