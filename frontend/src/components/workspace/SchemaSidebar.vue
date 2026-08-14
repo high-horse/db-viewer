@@ -37,14 +37,25 @@
             />
         </div>
 
+        <div>
+            <q-input
+                v-model="searchTerm"
+                placeholder="Search..."
+                class="w-full"
+                dense rounded
+                @keyup.enter="handleSearch"
+            />
+        </div>
         <!-- Schema Tree -->
         <q-scroll-area class="flex-grow p-2">
             <q-tree
+                v-model:expanded="expanded"
                 :nodes="schemaNodes"
                 node-key="id"
                 dark
                 no-connectors
                 dense
+                default-expand-all
                 class="text-xs compact-tree"
             >
                 <template #default-header="prop">
@@ -109,15 +120,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
 
 const connectionStore = useConnectionStore();
+const expanded = ref<string[]>([]);
+const searchQuery = ref("");
 
 const {
     activeConnectionMetadata,
     activeConnection,
+    searchTerm
 } = storeToRefs(connectionStore);
 
 interface SchemaNode {
@@ -149,53 +163,59 @@ const loading = ref(false);
  *   rows: 200
  * }
  */
-const schemaNodes = computed<SchemaNode[]>(() => {
-    const metadata = activeConnectionMetadata.value;
+ const schemaNodes = computed<SchemaNode[]>(() => {
+     const metadata = activeConnectionMetadata.value;
+ 
+     if (!metadata || !Array.isArray(metadata)) {
+         return [];
+     }
+ 
+     const query = searchQuery.value.trim().toLowerCase();
+ 
+     // Filter table/view names using %query%
+     const filteredMetadata = query
+         ? metadata.filter((item) =>
+               String(item.name ?? "")
+                   .toLowerCase()
+                   .includes(query)
+           )
+         : metadata;
+ 
+     // Group tables/views by schema
+     const schemas = new Map<string, any[]>();
+ 
+     filteredMetadata.forEach((item) => {
+         const schema = item.schema || "public";
+ 
+         if (!schemas.has(schema)) {
+             schemas.set(schema, []);
+         }
+ 
+         schemas.get(schema)!.push(item);
+     });
+ 
+     return Array.from(schemas.entries()).map(([schema, objects]) => ({
+         id: `schema-${schema}`,
+         label: schema,
+         icon: "schema",
+         iconColor: "amber-5",
+         type: "schema",
+ 
+         children: objects.map((item) => {
+             const isView = item.type === "VIEW";
+ 
+             return {
+                 id: `${schema}.${item.name}`,
+                 label: item.name,
+                 icon: isView ? "view_list" : "table_chart",
+                 iconColor: isView ? "blue-4" : "amber-4",
+                 type: isView ? "view" : "table",
+             };
+         }),
+     }));
+ });
 
-    if (!metadata || !Array.isArray(metadata)) {
-        return [];
-    }
-
-    // Group tables/views by schema
-    const schemas = new Map<string, any[]>();
-
-    metadata.forEach((item) => {
-        const schema = item.schema || "public";
-
-        if (!schemas.has(schema)) {
-            schemas.set(schema, []);
-        }
-
-        schemas.get(schema)!.push(item);
-    });
-
-    // Convert to q-tree nodes
-    return Array.from(schemas.entries()).map(([schema, objects]) => ({
-        id: `schema-${schema}`,
-        label: schema,
-        icon: "schema",
-        iconColor: "amber-5",
-        type: "schema",
-
-        children: objects.map((item) => {
-            const isView = item.type === "VIEW";
-
-            return {
-                id: `${schema}.${item.name}`,
-                label: item.name,
-
-                // Different icon for tables and views
-                icon: isView ? "view_list" : "table_chart",
-
-                // Different color for tables and views
-                iconColor: isView ? "blue-4" : "amber-4",
-
-                type: isView ? "view" : "table",
-            };
-        }),
-    }));
-});
-
+ 
 const tableCount = computed(() => {
     const metadata = activeConnectionMetadata.value;
 
@@ -237,6 +257,18 @@ function handleNodeDoubleClick(node: SchemaNode) {
         emit("selectTable", node);
     }
 }
+
+function handleSearch() {
+    searchQuery.value = searchTerm.value;
+}
+
+watch(
+    schemaNodes,
+    (nodes) => {
+        expanded.value = nodes.map((node) => node.id);
+    },
+    { immediate: true }
+);
 
 onMounted(() => {
     if (!activeConnectionMetadata.value) {
