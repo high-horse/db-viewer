@@ -194,6 +194,7 @@ const emit = defineEmits<{
     selectTab: [id: string];
     closeTab: [id: string];
     updateSql: [id: string, sql: string];
+    toggleResultTab: [];
 }>();
 
 function createTab() {
@@ -233,6 +234,12 @@ function executeActiveTab(sql: string) {
     );
 }
 
+function handleToggleResultTabShortcut(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key.toLowerCase() === "j") {
+        emit("toggleResultTab");
+        event.preventDefault();
+    }
+}
 
 function handleCreateTabShortcut(event: KeyboardEvent) {
     if (event.ctrlKey && event.key.toLowerCase() === "t") {
@@ -251,11 +258,13 @@ function handleCloseTabShortcut(event: KeyboardEvent) {
 onBeforeMount(() => {
     window.addEventListener("keydown", handleCreateTabShortcut);
     window.addEventListener("keydown", handleCloseTabShortcut);
+    window.addEventListener("keydown", handleToggleResultTabShortcut);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleCreateTabShortcut);
     window.removeEventListener("keydown", handleCloseTabShortcut);
+    window.removeEventListener("keydown", handleToggleResultTabShortcut);
 });
 
 </script>

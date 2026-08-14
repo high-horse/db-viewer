@@ -51,6 +51,7 @@
                                             queryTabsStore.updateSql
                                         "
                                         :on-execute="executeQuery"
+                                        @toggle-result-tab="handleToggleResultTab"
                                     />
                                 </div>
                             </template>
@@ -103,6 +104,7 @@
                                     queryTabsStore.updateSql
                                 "
                                 :on-execute="executeQuery"
+                                @toggle-result-tab="handleToggleResultTab"
                             />
                         </div>
                     </div>
@@ -138,6 +140,10 @@ const { activeConnection, activeConnectionMetadata } = storeToRefs(connectionSto
 
 function hideResults() {
     showResults.value = false;
+}
+
+function handleToggleResultTab() {
+    showResults.value = !showResults.value;
 }
 
 async function executeQuery(id: string, sql: string) {
