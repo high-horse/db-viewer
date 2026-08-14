@@ -11,6 +11,8 @@ export const useConnectionStore = defineStore("connection", () => {
   const selectedConnection = ref<Connection | null>(null);
   const activeConnection = ref<Connection | null>(null);
   const activeConnectionMetadata = ref<InspectTableInfo[] | null>(null);
+
+  const searchTerm = ref<string>("");
   
   const connections = ref<Connection[]>([]);
   const showNewConnectionDialog = ref(false);
@@ -167,5 +169,6 @@ export const useConnectionStore = defineStore("connection", () => {
     pingConnection,
     connectToSession,
     setActiveConnectionMetadata,
+    searchTerm,
   };
 });
