@@ -109,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -137,4 +137,5 @@ watch(activeConnection, (newConnection) => {
         console.log("connection dd", newConnection);
     }
 });
+
 </script>

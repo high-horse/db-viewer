@@ -94,6 +94,7 @@
                     flat
                     dense
                     square
+                    size="sm"
                     icon="add"
                     class="new-tab-button shrink-0"
                     color="grey-6"
