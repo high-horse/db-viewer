@@ -151,6 +151,25 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
+  function resetStore() {
+    selectedConnection.value = null;
+    activeConnection.value = null;
+    activeConnectionMetadata.value = null;
+    
+    searchTerm.value = "";
+    
+    connections.value = [];
+    
+    showNewConnectionDialog.value = false;
+    
+    loadingStates.value = {
+    getConnections: false,
+    saveConnection: false,
+    connecting: false,
+    setActiveConnectionMetadata: false,
+    };
+  }
+  
   return {
     selectedConnection,
     activeConnection,
@@ -170,5 +189,6 @@ export const useConnectionStore = defineStore("connection", () => {
     connectToSession,
     setActiveConnectionMetadata,
     searchTerm,
+    resetStore,
   };
 });

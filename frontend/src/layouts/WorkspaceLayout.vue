@@ -22,7 +22,6 @@
                     <div
                         class="h-full min-w-0 min-h-0 overflow-hidden flex flex-col"
                     >
-
                         <WorkspaceTabs
                             :tabs="queryTabsStore.tabs"
                             :active-tab-id="queryTabsStore.activeTabId"
@@ -34,7 +33,6 @@
                         <!-- ACTIVE TAB CONTENT -->
 
                         <div class="flex-grow min-h-0 min-w-0 overflow-hidden">
-
                             <template
                                 v-if="
                                     queryTabsStore.activeTab?.type === 'query'
@@ -156,6 +154,7 @@
                                         size="sm"
                                         label="New Query"
                                         icon="add"
+                                        dense
                                         @click="queryTabsStore.createTab()"
                                     />
                                 </div>
@@ -374,18 +373,16 @@ function handleToggleResultTabShortcut(event: KeyboardEvent) {
 
 onBeforeMount(() => {
     window.addEventListener("keydown", handleCreateTabShortcut);
-
     window.addEventListener("keydown", handleCloseTabShortcut);
-
     window.addEventListener("keydown", handleToggleResultTabShortcut);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleCreateTabShortcut);
-
     window.removeEventListener("keydown", handleCloseTabShortcut);
-
     window.removeEventListener("keydown", handleToggleResultTabShortcut);
+  
+    connectionStore.resetStore();
 });
 
 onMounted(() => {

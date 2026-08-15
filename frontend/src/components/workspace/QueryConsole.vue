@@ -85,6 +85,7 @@
                 color="amber"
                 text-color="black"
                 size="sm"
+                dense
                 label="New Query"
                 icon="add"
                 @click="createTab"
