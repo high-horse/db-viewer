@@ -1,7 +1,8 @@
 <template>
     <div
-        class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-none"
+        class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-text"
     >
+        <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect" />
 
         <div class="grow flex relative min-w-0 min-h-0 overflow-hidden">

@@ -94,20 +94,21 @@
                 />
                     <!-- icon="schema" -->
             </q-tabs>
-        
+
             <div
-                v-if="activeSubTab === 'data'"
-                class="flex-grow min-h-0 overflow-hidden"
+                class="flex-1 min-h-0 min-w-0 overflow-hidden"
             >
-                <ResultTab :result="result" />
-            </div>
+                <ResultTab
+                    v-if="activeSubTab === 'data'"
+                    :result="result"
+                />
         
-            <div
-                v-else-if="activeSubTab === 'schema'"
-                class="flex-grow min-h-0 overflow-hidden"
-            >
-                <SchemaTab :result="result" />
+                <SchemaTab
+                    v-else
+                    :result="result"
+                />
             </div>
+
         </template>
 
         <!-- Empty -->
