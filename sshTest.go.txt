@@ -1,0 +1,273 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"time"
+
+	_ "github.com/lib/pq"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
+)
+
+type SSHTunnel struct {
+	SSHClient  *ssh.Client
+	LocalAddr  string
+	RemoteAddr string
+}
+
+func NewSSHTunnel(
+	sshHost string,
+	sshUser string,
+	privateKeyPath string,
+	localAddr string,
+	remoteAddr string,
+) (*SSHTunnel, error) {
+
+	// Read private key
+	key, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("read private key: %w", err)
+	}
+
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("parse private key: %w", err)
+	}
+
+	// Known hosts file
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("get home directory: %w", err)
+	}
+
+	knownHostsPath := homeDir + "/.ssh/known_hosts"
+
+	hostKeyCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("load known_hosts: %w", err)
+	}
+
+	// SSH configuration
+	sshConfig := &ssh.ClientConfig{
+		User: sshUser,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: hostKeyCallback,
+		Timeout:         10 * time.Second,
+	}
+
+	// Connect to SSH server
+	sshClient, err := ssh.Dial(
+		"tcp",
+		sshHost,
+		sshConfig,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("connect to SSH server: %w", err)
+	}
+
+	return &SSHTunnel{
+		SSHClient:  sshClient,
+		LocalAddr:  localAddr,
+		RemoteAddr: remoteAddr,
+	}, nil
+}
+
+func (t *SSHTunnel) Start() error {
+	listener, err := net.Listen("tcp", t.LocalAddr)
+	if err != nil {
+		return fmt.Errorf("create local listener: %w", err)
+	}
+
+	fmt.Printf(
+		"SSH tunnel started: %s -> %s\n",
+		t.LocalAddr,
+		t.RemoteAddr,
+	)
+
+	for {
+		localConn, err := listener.Accept()
+		if err != nil {
+			return fmt.Errorf("accept connection: %w", err)
+		}
+
+		go t.forward(localConn)
+	}
+}
+
+func (t *SSHTunnel) forward(localConn net.Conn) {
+	defer localConn.Close()
+
+	// Connect from SSH server to database
+	remoteConn, err := t.SSHClient.Dial(
+		"tcp",
+		t.RemoteAddr,
+	)
+	if err != nil {
+		fmt.Printf("connect to database: %v\n", err)
+		return
+	}
+	defer remoteConn.Close()
+
+	// Copy data in both directions
+	errCh := make(chan error, 2)
+
+	go func() {
+		_, err := io.Copy(remoteConn, localConn)
+		errCh <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(localConn, remoteConn)
+		errCh <- err
+	}()
+
+	// Wait until either side closes
+	<-errCh
+}
+
+func (t *SSHTunnel) Close() {
+	if t.SSHClient != nil {
+		t.SSHClient.Close()
+	}
+}
+
+func main() {
+
+	// --------------------------------------------------
+	// SSH configuration
+	// --------------------------------------------------
+
+	sshHost := "bastion.example.com:22"
+	sshUser := "ubuntu"
+
+	privateKeyPath := "/home/myuser/.ssh/id_rsa"
+
+	// Local address that Go will listen on
+	localAddr := "127.0.0.1:15432"
+
+	// Database address as seen FROM THE SSH SERVER
+	remoteAddr := "postgres.internal:5432"
+
+	// --------------------------------------------------
+	// Create SSH tunnel
+	// --------------------------------------------------
+
+	tunnel, err := NewSSHTunnel(
+		sshHost,
+		sshUser,
+		privateKeyPath,
+		localAddr,
+		remoteAddr,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer tunnel.Close()
+
+	// Start tunnel in background
+	go func() {
+		if err := tunnel.Start(); err != nil {
+			fmt.Printf("SSH tunnel stopped: %v\n", err)
+		}
+	}()
+
+	// Give the listener a moment to start
+	time.Sleep(500 * time.Millisecond)
+
+	// --------------------------------------------------
+	// Connect to PostgreSQL
+	// --------------------------------------------------
+
+	dbURL := "host=127.0.0.1 " +
+		"port=15432 " +
+		"user=myuser " +
+		"password=mypassword " +
+		"dbname=mydatabase " +
+		"sslmode=disable"
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
+
+	// Verify database connection
+	if err := db.Ping(); err != nil {
+		panic(fmt.Errorf("database connection failed: %w", err))
+	}
+
+	fmt.Println("Successfully connected to PostgreSQL!")
+
+	// --------------------------------------------------
+	// Run query
+	// --------------------------------------------------
+
+	var version string
+
+	err = db.QueryRow("SELECT version()").Scan(&version)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("PostgreSQL version:")
+	fmt.Println(version)
+}
+
+=========
+creds
+sshHost := "bastion.example.com:22"
+sshUser := "ubuntu"
+privateKeyPath := "/home/myuser/.ssh/id_rsa"
+
+remoteAddr := "postgres.internal:5432"
+
+dbURL := "host=127.0.0.1 " +
+    "port=15432 " +
+    "user=myuser " +
+    "password=mypassword " +
+    "dbname=mydatabase " +
+    "sslmode=disable"
+
+
+=======
+For example, suppose you normally connect manually with:
+ssh -i ~/.ssh/my-server.pem ubuntu@10.10.10.20
+
+For example, suppose you normally connect manually with:
+ssh -i ~/.ssh/my-server.pem ubuntu@10.10.10.20
+
+and, from that server, the database is accessible as:
+10.20.30.40:5432
+
+Then your Go configuration becomes:
+sshHost := "10.10.10.20:22"
+sshUser := "ubuntu"
+privateKeyPath := "/home/me/.ssh/my-server.pem"
+
+localAddr := "127.0.0.1:15432"
+remoteAddr := "10.20.30.40:5432"
+
+Your Go application connects to:
+127.0.0.1:15432
+
+while the SSH server forwards that traffic to:
+10.20.30.40:5432
+
+Don't put credentials directly in the source:
+password=mypassword
+
+For a real application, use environment variables or a secret manager:
+dbURL := fmt.Sprintf(
+	"host=127.0.0.1 port=15432 user=%s password=%s dbname=%s sslmode=require",
+	os.Getenv("DB_USER"),
+	os.Getenv("DB_PASSWORD"),
+	os.Getenv("DB_NAME"),
+)
