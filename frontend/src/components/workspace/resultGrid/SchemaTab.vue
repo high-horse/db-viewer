@@ -1,149 +1,164 @@
 <template>
-    <div class="h-full overflow-auto bg-[#100e0c]">
-        <table class="w-full border-collapse font-mono text-[11px]">
-            <thead>
-                <tr
-                    class="bg-[#161310] text-amber-400 border-b-2 border-[#292521]"
-                >
-                    <th class="schema-cell text-left w-10">
-                        #
-                    </th>
-
-                    <th class="schema-cell text-left">
-                        Column
-                    </th>
-
-                    <th class="schema-cell text-left">
-                        Type
-                    </th>
-
-                    <th class="schema-cell text-left">
-                        Nullable
-                    </th>
-
-                    <th class="schema-cell text-left">
-                        Default
-                    </th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr
-                    v-for="(column, index) in result.Columns"
-                    :key="column.Name"
-                    class="schema-row"
-                >
-                    <td class="schema-cell text-[#4b5563]">
-                        {{ index + 1 }}
-                    </td>
-
-                    <td
-                        class="schema-cell text-white font-medium"
-                    >
-                        <div class="flex items-center gap-2">
-                            <q-icon
-                                name="view_column"
-                                size="14px"
-                                class="text-amber-500"
-                            />
-
-                            {{ column.Name }}
-                        </div>
-                    </td>
-
-                    <td class="schema-cell text-blue-300">
-                        {{ column.Type }}
-                    </td>
-
-                    <td class="schema-cell">
-                        <span
-                            :class="
-                                column.Nullable
-                                    ? 'text-teal-400'
-                                    : 'text-amber-400'
-                            "
-                        >
-                            {{
-                                column.Nullable
-                                    ? "YES"
-                                    : "NO"
-                            }}
-                        </span>
-                    </td>
-
-                    <td class="schema-cell text-[#94a3b8]">
-                        <span
-                            v-if="column.DefaultValue"
-                            class="text-purple-300"
-                        >
-                            {{ column.DefaultValue }}
-                        </span>
-
-                        <span
-                            v-else
-                            class="text-[#4b4540]"
-                        >
-                            —
-                        </span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Empty schema -->
-        <div
-            v-if="!result.Columns.length"
-            class="h-full flex items-center justify-center text-[#4b4540] text-xs"
+    <div class="h-full relative overflow-hidden bg-[#100e0c]">
+        <q-table
+            flat
+            square
+            dense
+            dark
+            :rows="rows"
+            :columns="columns"
+            row-key="name"
+            :pagination="{
+                rowsPerPage: 0,
+            }"
+            class="absolute-full schema-grid"
+            hide-bottom
         >
-            No column information available
-        </div>
+            <!-- Header -->
+            <template #header="props">
+                <q-tr :props="props">
+                    <q-th
+                        v-for="col in props.cols"
+                        :key="col.name"
+                        :props="props"
+                        :class="{
+                            'sn-header': col.name === 'sn',
+                        }"
+                        class="schema-header text-amber-400"
+                    >
+                        {{ col.label }}
+                    </q-th>
+                </q-tr>
+            </template>
+
+            <!-- Body -->
+            <template #body="props">
+                <q-tr :props="props">
+                    <q-td
+                        v-for="col in props.cols"
+                        :key="col.name"
+                        :props="props"
+                        :class="{
+                            'sn-cell': col.name === 'sn',
+                        }"
+                    >
+                        <template v-if="col.name === 'sn'">
+                            {{ props.rowIndex + 1 }}
+                        </template>
+
+                        <template v-else-if="col.name === 'column'">
+                            <div class="flex items-center gap-2">
+                                <q-icon
+                                    name="view_column"
+                                    size="14px"
+                                    class="text-amber-500"
+                                />
+
+                                <span class="text-white font-medium">
+                                    {{ props.row.name }}
+                                </span>
+                            </div>
+                        </template>
+
+                        <template v-else-if="col.name === 'nullable'">
+                            <span
+                                :class="
+                                    props.row.nullable
+                                        ? 'text-teal-400'
+                                        : 'text-amber-400'
+                                "
+                            >
+                                {{
+                                    props.row.nullable
+                                        ? "YES"
+                                        : "NO"
+                                }}
+                            </span>
+                        </template>
+
+                        <template v-else-if="col.name === 'default'">
+                            <span
+                                v-if="props.row.defaultValue"
+                                class="text-purple-300"
+                            >
+                                {{ props.row.defaultValue }}
+                            </span>
+
+                            <span
+                                v-else
+                                class="text-[#4b4540]"
+                            >
+                                —
+                            </span>
+                        </template>
+
+                        <template v-else>
+                            {{ col.value }}
+                        </template>
+                    </q-td>
+                </q-tr>
+            </template>
+        </q-table>
     </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import type { QTableColumn } from "quasar";
 import type { QueryResult } from "@/types/queryTab";
 
-defineProps<{
+const props = defineProps<{
     result: QueryResult;
 }>();
+
+const columns = computed<QTableColumn[]>(() => [
+    {
+        name: "sn",
+        label: "#",
+        field: "sn",
+        align: "left",
+        sortable: false,
+    },
+
+    {
+        name: "column",
+        label: "Column",
+        field: "name",
+        align: "left",
+        sortable: true,
+    },
+
+    {
+        name: "type",
+        label: "Type",
+        field: "type",
+        align: "left",
+        sortable: true,
+    },
+
+    {
+        name: "nullable",
+        label: "Nullable",
+        field: "nullable",
+        align: "left",
+        sortable: true,
+    },
+
+    {
+        name: "default",
+        label: "Default",
+        field: "defaultValue",
+        align: "left",
+        sortable: true,
+    },
+]);
+
+const rows = computed(() => {
+    return props.result.Columns.map((column) => ({
+        name: column.Name,
+        type: column.Type,
+        nullable: column.Nullable,
+        defaultValue: column.DefaultValue,
+    }));
+});
 </script>
-
-<style scoped>
-.schema-row {
-    background-color: #100e0c;
-}
-
-.schema-row:nth-child(even) {
-    background-color: #13110f;
-}
-
-.schema-row:hover {
-    background-color: #231f1a;
-}
-
-.schema-cell {
-    padding: 8px 10px;
-    border-bottom: 1px solid #292521;
-    white-space: nowrap;
-}
-
-thead th.schema-cell {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-
-    padding-top: 7px;
-    padding-bottom: 7px;
-
-    font-weight: bold;
-    font-size: 10px;
-}
-
-table {
-    min-width: 100%;
-}
-
-tbody td {
-    font-size: 11px;
-}
-</style>
