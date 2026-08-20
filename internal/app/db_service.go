@@ -114,7 +114,7 @@ func (s *DbService) InspectDatabase(ctx context.Context) ([]entities.InspectTabl
 	return driver.Inspector().ListTables(ctx, conn)
 }
 
-func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entities.QueryResult, error) {
+func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryInput) (*entities.QueryResult, error) {
 	conn, ok := s.manager.Active()
 	if !ok {
 		return nil, fmt.Errorf("active connection not found")
@@ -125,7 +125,9 @@ func (s *DbService) ExecuteQuery(ctx context.Context, rawQuery string) (*entitie
 		return nil, err
 	}
 
-	fmt.Println("before parsed query", rawQuery)
+	rawQuery := queryInput.Query
+	cursor := queryInput.Cursor
+	_ = cursor
 	
 	parsed, err := driver.Parser().Parse(rawQuery)
 	if err != nil {

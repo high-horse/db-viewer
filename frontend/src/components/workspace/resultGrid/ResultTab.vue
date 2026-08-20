@@ -421,19 +421,18 @@ const mappedColumns = computed<QTableColumn[]>(() => {
             align: "left",
             sortable: false,
 
-            style: {
-                width: `${SN_COLUMN_WIDTH}px`,
-                minWidth: `${SN_COLUMN_WIDTH}px`,
-                maxWidth: `${SN_COLUMN_WIDTH}px`,
-            },
+            style: `
+                width: ${SN_COLUMN_WIDTH}px;
+                min-width: ${SN_COLUMN_WIDTH}px;
+                max-width: ${SN_COLUMN_WIDTH}px;
+            `,
 
-            headerStyle: {
-                width: `${SN_COLUMN_WIDTH}px`,
-                minWidth: `${SN_COLUMN_WIDTH}px`,
-                maxWidth: `${SN_COLUMN_WIDTH}px`,
-            },
+            headerStyle: `
+                width: ${SN_COLUMN_WIDTH}px;
+                min-width: ${SN_COLUMN_WIDTH}px;
+                max-width: ${SN_COLUMN_WIDTH}px;
+            `,
         },
-
 
         ...props.result.Columns.map((column) => {
             const width = getColumnWidth(column.Name);
@@ -449,22 +448,21 @@ const mappedColumns = computed<QTableColumn[]>(() => {
                 Nullable: column.Nullable,
                 DefaultValue: column.DefaultValue,
 
-                style: {
-                    width: `${width}px`,
-                    minWidth: `${width}px`,
-                    maxWidth: `${width}px`,
-                },
+                style: `
+                    width: ${width}px;
+                    min-width: ${width}px;
+                    max-width: ${width}px;
+                `,
 
-                headerStyle: {
-                    width: `${width}px`,
-                    minWidth: `${width}px`,
-                    maxWidth: `${width}px`,
-                },
+                headerStyle: `
+                    width: ${width}px;
+                    min-width: ${width}px;
+                    max-width: ${width}px;
+                `,
             };
         }),
     ];
 });
-
 const mappedRows = computed(() => {
     const rows = props.result.Rows.map((row, rowIndex) => {
         const rowObject = {

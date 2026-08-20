@@ -23,8 +23,8 @@ export function Disconnect(connID: string): $CancellablePromise<void> {
     return $Call.ByID(3910241401, connID);
 }
 
-export function ExecuteQuery(rawQuery: string): $CancellablePromise<entities$0.QueryResult | null> {
-    return $Call.ByID(2057292634, rawQuery);
+export function ExecuteQuery(queryInput: entities$0.QueryInput): $CancellablePromise<entities$0.QueryResult | null> {
+    return $Call.ByID(2057292634, queryInput);
 }
 
 export function GetActiveConnection(): $CancellablePromise<string> {
