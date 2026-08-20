@@ -45,6 +45,22 @@ export interface InspectTableInfo {
     "updatedAt"?: string | null;
 }
 
+export enum QueryExecutionType {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = 0,
+
+    QueryExecutionExecute = 0,
+    QueryExecutionFetchPaged = 1,
+};
+
+export interface QueryInput {
+    "query": string;
+    "cursor": string;
+    "type": QueryExecutionType;
+}
+
 export interface QueryResult {
     "columns": ColumnInfo[] | null;
     "rows": (any[] | null)[] | null;
@@ -52,6 +68,7 @@ export interface QueryResult {
     "lastInsertId": number;
     "duration": time$0.Duration;
     "isQuery": boolean;
+    "cursor": string;
 }
 
 export interface SSHConfig {

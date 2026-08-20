@@ -130,6 +130,9 @@ func (e *Executor) Execute(
 	}, nil
 }
 
+func prepareIndex() string{
+	return ""
+}
 
 func (e *Executor) ExecuteOld(
 	ctx context.Context,

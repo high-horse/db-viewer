@@ -188,6 +188,7 @@ import WorkspaceTabs from "@/components/workspace/WorkspaceTabs.vue";
 
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { QueryExecutionType, QueryInput } from "@bindings/db-viewer/internal/engine/entities";
 
 const $router = useRouter();
 
@@ -206,7 +207,7 @@ function hideResults() {
     showResults.value = false;
 }
 
-async function executeQuery(id: string, sql: string) {
+async function executeQuery(id: string, sql: string, type: QueryExecutionType = QueryExecutionType.QueryExecutionExecute) {
     const tab = queryTabsStore.tabs.find((tab) => tab.id === id);
 
     if (!tab || !sql.trim()) {
@@ -218,7 +219,13 @@ async function executeQuery(id: string, sql: string) {
     queryTabsStore.setLoading(id, true);
 
     try {
-        const response = await DbService.ExecuteQuery(sql);
+    
+        const queryInput: QueryInput = {
+            query: sql,
+            cursor: "",
+            type: type
+        };
+        const response = await DbService.ExecuteQuery(queryInput);
 
         if (!response) {
             throw new Error("Query returned no response");
@@ -281,8 +288,13 @@ async function executeTableResult(
             .join(".");
 
         const sql = `SELECT * FROM ${tableName};`;
+        const queryInput: QueryInput = {
+            query: sql,
+            cursor: "",
+            type: QueryExecutionType.QueryExecutionExecute
+        };
 
-        const response = await DbService.ExecuteQuery(sql);
+        const response = await DbService.ExecuteQuery(queryInput);
 
         if (!response) {
             throw new Error("Query returned no response");
