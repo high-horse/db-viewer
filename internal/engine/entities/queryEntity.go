@@ -14,6 +14,7 @@ type QueryExecutionType int
 const (
 	QueryExecutionExecute QueryExecutionType = iota
 	QueryExecutionFetchPaged
+	QueryExecuteRefresh
 )
 
 type QueryInput struct {

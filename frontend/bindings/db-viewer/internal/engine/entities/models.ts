@@ -53,6 +53,7 @@ export enum QueryExecutionType {
 
     QueryExecutionExecute = 0,
     QueryExecutionFetchPaged = 1,
+    QueryExecuteRefresh = 2,
 };
 
 export interface QueryInput {
