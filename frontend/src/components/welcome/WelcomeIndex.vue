@@ -400,7 +400,16 @@ async function connect() {
                 ok: "OK",
                 cancel: "Cancel",
             }).onOk(async () => {
-                await DbService.SaveAndConnect(parseToConfig());
+                try {
+                    await DbService.SaveAndConnect(parseToConfig());
+                } catch (err: any) {
+                    Dialog.create({
+                        message: err?.message || "Failed to save & connect",
+                        color: "negative",
+                    });
+                    console.error(err);
+                    return;
+                }
                 activeConnectionStore.setActiveConnection();
               // $router.push({ name: "workspace" });
                 $router.push({ name: "WorkSpace" });
