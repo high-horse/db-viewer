@@ -257,6 +257,7 @@ async function executeQuery(id: string, sql: string, type: QueryExecutionType = 
     }
 }
 
+
 async function handleTableSelect(node: {
     id: string;
     label: string;
