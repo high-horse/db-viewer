@@ -282,11 +282,12 @@ async function executeTableResult(
 ) {
     queryTabsStore.setLoading(id, true);
 
-    try {
+  try {
         const tableName = node.id
-            .split(".")
-            .map((part) => `"${part.replace(/"/g, '""')}"`)
-            .join(".");
+          .split(".")
+          .map((part) => quoteIdentifier(part, activeConnection.value?.driver))
+          // .map((part) => `"${part.replace(/"/g, '""')}"`)
+          .join(".");
 
         const sql = `SELECT * FROM ${tableName};`;
         const queryInput: QueryInput = {
@@ -325,6 +326,20 @@ async function executeTableResult(
     } finally {
         queryTabsStore.setLoading(id, false);
     }
+}
+
+function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
+
+  switch (driver) {
+      case "pgx":
+        return `"${identifier.replace(/"/g, '""')}"`;
+      case "mysql":
+          return `\`${identifier.replace(/`/g, "``")}\``;
+    default:
+      return identifier;
+  }
+
+  
 }
 
 async function handleDisconnect() {
