@@ -7,9 +7,15 @@ export interface QueryColumn {
 
 
 export interface QueryResult {
+  Cursor: string;
+  HasMore: boolean;
+  StartRow: number;
+  PageSize: number;
+  IsQuery: boolean;
+  CanNavigate: boolean;
   Duration: number;
   Columns: QueryColumn[];
-  Rows: Array<Array<string | number>>;
+  Rows: Array<Array<unknown>>;
 }
 
 export type QueryTabType = "query" | "result"
@@ -28,4 +34,14 @@ export interface QueryTab {
   createdAt: number;
 
   connectionId?: string;
+  pages?: QueryResult[];
+  pageIndex?: number;
+  cursor?: string;
+  executedSql?: string;
+  pageError?: string;
+  totalRows?: number;
+  fetchingLast?: boolean;
+  streamNextPage?: number;
+  sortColumn?: number;
+  sortDirection?: "asc" | "desc";
 }

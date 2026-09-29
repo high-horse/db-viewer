@@ -13,7 +13,7 @@ func NewParser() *Parser {
 
 func (p *Parser) Parse(sql string) (*entities.SQLQueryEntity, error) {
 	return &entities.SQLQueryEntity{
-		RawSQL:        queryParaser.PaginatedSQLStmt(sql, 50),
+		RawSQL:        sql,
 		Dialect:       entities.DialectMySQL,
 		StatementType: queryParaser.ExtractStatementType(sql),
 	}, nil
