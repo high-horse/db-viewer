@@ -6,6 +6,7 @@ import (
 	manager "db-viewer/internal/engine/connectionManager"
 	"db-viewer/internal/engine/entities"
 	"fmt"
+	// "log"
 )
 
 
@@ -207,4 +208,8 @@ func (i *MySQLInspector) ListColumns(
 	}
 
 	return columns, nil
+}
+
+func (i *MySQLInspector) GetTableDDL(ctx context.Context, table string) (string, error) {
+	return "", nil
 }

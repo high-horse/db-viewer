@@ -229,3 +229,8 @@ func (i *PostgresInspector) ListColumns(
 
 	return columns, rows.Err()
 }
+
+
+func (p *PostgresInspector) GetTableDDL(ctx context.Context, table string) (string, error) {
+	return "", nil
+}

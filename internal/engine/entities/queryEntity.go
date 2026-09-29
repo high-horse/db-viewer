@@ -15,12 +15,18 @@ const (
 	QueryExecutionExecute QueryExecutionType = iota
 	QueryExecutionFetchPaged
 	QueryExecuteRefresh
+	QueryExecutionClose
+	QueryExecutionNavigate
 )
 
 type QueryInput struct {
-	Query  string             `json:"query"`
-	Cursor string             `json:"cursor"`
-	Type   QueryExecutionType `json:"type"`
+	Query         string             `json:"query"`
+	Cursor        string             `json:"cursor"`
+	Type          QueryExecutionType `json:"type"`
+	PageSize      int                `json:"pageSize"`
+	Page          int                `json:"page"`
+	SortColumn    int                `json:"sortColumn,omitempty"`
+	SortDirection string             `json:"sortDirection,omitempty"`
 }
 
 type QueryResult struct {
@@ -31,6 +37,11 @@ type QueryResult struct {
 	Duration     time.Duration   `json:"duration"`
 	IsQuery      bool            `json:"isQuery"`
 	Cursor       string          `json:"cursor"`
+	HasMore      bool            `json:"hasMore"`
+	StartRow     int64           `json:"startRow"`
+	PageSize     int             `json:"pageSize"`
+	TotalRows    *int64          `json:"totalRows,omitempty"`
+	CanNavigate  bool            `json:"canNavigate"`
 }
 
 type TableInfo struct {

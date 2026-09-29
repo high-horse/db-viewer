@@ -9,10 +9,9 @@ import (
 
 type Inspector interface {
 	ListDatabases(ctx context.Context, conn manager.Connection) ([]entities.DatabaseInfo, error)
-
 	ListTables(ctx context.Context, conn manager.Connection)([]entities.InspectTableInfo, error)
-
 	ListColumns (ctx context.Context, conn manager.Connection, table entities.InspectTableInfo) ([]entities.InspectColumnInfo, error)
+	GetTableDDL (ctx context.Context, table string) (string, error)
 
 	// TODO: for later
 	// ListIndexes()

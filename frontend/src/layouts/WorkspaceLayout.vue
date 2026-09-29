@@ -72,10 +72,23 @@
                                             class="h-full min-w-0 min-h-0 overflow-hidden"
                                         >
                                             <ResultGrid
+                                        :key="queryTabsStore.activeTab.id"
+                                        :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
+                                        :total-rows="queryTabsStore.activeTab.totalRows"
+                                        :sort-column="queryTabsStore.activeTab.sortColumn"
+                                        :sort-direction="queryTabsStore.activeTab.sortDirection"
+                                        @sort="(column, direction) => queryTabsStore.sortResult(queryTabsStore.activeTab?.id ?? '', column, direction)"
+                                        :fetching-last="queryTabsStore.activeTab.fetchingLast"
+                                        @stop="queryTabsStore.stopFetching(queryTabsStore.activeTab.id)"
+                                        @last="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'last')"
+                                        :can-previous="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow > 1 : (queryTabsStore.activeTab.pageIndex ?? 0) > 0"
+                                        :can-next="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
+                                        :page-error="queryTabsStore.activeTab.pageError"
+                                        @refresh="executeQuery(queryTabsStore.activeTab.id, queryTabsStore.activeTab.executedSql ?? '')"
+                                        @previous="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'previous')"
+                                        @next="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'next')"
                                                 :result="
-                                                    queryTabsStore.activeTab
-                                                        .result ?? null
-                                                "
+                                                    queryTabsStore.activeTab.result ?? null"
                                                 :loading="
                                                     queryTabsStore.activeTab
                                                         .loading
@@ -115,6 +128,21 @@
                                     class="h-full w-full min-w-0 min-h-0 overflow-hidden"
                                 >
                                     <ResultGrid
+                                        :key="queryTabsStore.activeTab.id"
+                                        :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
+                                        :total-rows="queryTabsStore.activeTab.totalRows"
+                                        :sort-column="queryTabsStore.activeTab.sortColumn"
+                                        :sort-direction="queryTabsStore.activeTab.sortDirection"
+                                        @sort="(column, direction) => queryTabsStore.sortResult(queryTabsStore.activeTab?.id ?? '', column, direction)"
+                                        :fetching-last="queryTabsStore.activeTab.fetchingLast"
+                                        @stop="queryTabsStore.stopFetching(queryTabsStore.activeTab.id)"
+                                        @last="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'last')"
+                                        :can-previous="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow > 1 : (queryTabsStore.activeTab.pageIndex ?? 0) > 0"
+                                        :can-next="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
+                                        :page-error="queryTabsStore.activeTab.pageError"
+                                        @refresh="executeQuery(queryTabsStore.activeTab.id, queryTabsStore.activeTab.executedSql ?? '')"
+                                        @previous="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'previous')"
+                                        @next="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'next')"
                                         :result="
                                             queryTabsStore.activeTab.result ??
                                             null
@@ -176,7 +204,7 @@ import { useRouter } from "vue-router";
 
 import { DbService } from "@bindings/db-viewer/internal/app";
 
-import type { QueryResult } from "@/types/queryTab";
+
 
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
@@ -188,7 +216,7 @@ import WorkspaceTabs from "@/components/workspace/WorkspaceTabs.vue";
 
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { QueryExecutionType, QueryInput } from "@bindings/db-viewer/internal/engine/entities";
+
 
 const $router = useRouter();
 
@@ -207,54 +235,9 @@ function hideResults() {
     showResults.value = false;
 }
 
-async function executeQuery(id: string, sql: string, type: QueryExecutionType = QueryExecutionType.QueryExecutionExecute) {
-    const tab = queryTabsStore.tabs.find((tab) => tab.id === id);
-
-    if (!tab || !sql.trim()) {
-        return;
-    }
-
+async function executeQuery(id: string, sql: string) {
     showResults.value = true;
-
-    queryTabsStore.setLoading(id, true);
-
-    try {
-    
-        const queryInput: QueryInput = {
-            query: sql,
-            cursor: "",
-            type: type
-        };
-        const response = await DbService.ExecuteQuery(queryInput);
-
-        if (!response) {
-            throw new Error("Query returned no response");
-        }
-
-        const result: QueryResult = {
-            Duration: response.duration ?? 0,
-
-            Columns: (response.columns ?? []).map((column) => ({
-                Name: column.name,
-                Type: column.databaseType,
-                Nullable: column.nullable,
-                DefaultValue: column.defaultValue,
-            })),
-
-            Rows: (response.rows ?? []).map((row) =>
-                (row ?? []).map((value) => value ?? ""),
-            ),
-        };
-
-        queryTabsStore.setResult(id, result);
-    } catch (error) {
-        queryTabsStore.setError(
-            id,
-            error instanceof Error ? error.message : "Query execution failed",
-        );
-    } finally {
-        queryTabsStore.setLoading(id, false);
-    }
+    await queryTabsStore.execute(id, sql);
 }
 
 
@@ -280,52 +263,11 @@ async function executeTableResult(
         type?: string;
     },
 ) {
-    queryTabsStore.setLoading(id, true);
-
-  try {
-        const tableName = node.id
-          .split(".")
-          .map((part) => quoteIdentifier(part, activeConnection.value?.driver))
-          // .map((part) => `"${part.replace(/"/g, '""')}"`)
-          .join(".");
-
-        const sql = `SELECT * FROM ${tableName};`;
-        const queryInput: QueryInput = {
-            query: sql,
-            cursor: "",
-            type: QueryExecutionType.QueryExecutionExecute
-        };
-
-        const response = await DbService.ExecuteQuery(queryInput);
-
-        if (!response) {
-            throw new Error("Query returned no response");
-        }
-
-        const result: QueryResult = {
-            Duration: response.duration ?? 0,
-
-            Columns: (response.columns ?? []).map((column) => ({
-                Name: column.name,
-                Type: column.databaseType,
-                Nullable: column.nullable,
-                DefaultValue: column.defaultValue,
-            })),
-
-            Rows: (response.rows ?? []).map((row) =>
-                (row ?? []).map((value) => value ?? ""),
-            ),
-        };
-
-        queryTabsStore.setResult(id, result);
-    } catch (error) {
-        queryTabsStore.setError(
-            id,
-            error instanceof Error ? error.message : "Failed to load table",
-        );
-    } finally {
-        queryTabsStore.setLoading(id, false);
-    }
+    const tableName = node.id.split(".")
+        .map(part => quoteIdentifier(part, activeConnection.value?.driver)).join(".");
+    const sql = `SELECT * FROM ${tableName};`;
+    queryTabsStore.updateSql(id, sql);
+    await executeQuery(id, sql);
 }
 
 function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
@@ -336,7 +278,7 @@ function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
       case "mysql":
           return `\`${identifier.replace(/`/g, "``")}\``;
     default:
-      return identifier;
+      return `"${identifier.replace(/"/g, '""')}"`;
   }
 
   
@@ -411,6 +353,7 @@ onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleCloseTabShortcut);
     window.removeEventListener("keydown", handleToggleResultTabShortcut);
   
+    queryTabsStore.clearResults();
     connectionStore.resetStore();
 });
 

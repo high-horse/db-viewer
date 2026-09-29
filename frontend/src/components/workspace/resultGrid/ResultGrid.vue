@@ -11,14 +11,14 @@
                     v-if="result && !loading"
                     class="text-teal-400 font-bold"
                 >   
-                    • {{ result.Rows.length }} rows fetched
+                    • {{ result.Rows.length }} rows in this page
                 </span>
 
                 <span
                     v-if="loading"
                     class="text-amber-400 font-bold"
                 >
-                    • Executing...
+                    • {{ fetchingLast ? 'Fetching remaining pages…' : result ? 'Fetching page…' : 'Executing…' }}
                 </span>
             </div>
 
@@ -43,7 +43,7 @@
 
         <!-- Loading -->
         <div
-            v-if="loading"
+            v-if="loading && !result"
             class="flex-grow flex flex-col items-center justify-center gap-3"
         >
             <q-spinner-dots color="amber" size="32px" />
@@ -73,6 +73,7 @@
 
         <!-- Result Content -->
         <template v-else-if="result">
+            <div v-if="pageError" role="alert" class="px-3 py-2 text-xs text-red-300">{{ pageError }}</div>
             <q-tabs
                 v-model="activeSubTab"
                 dense
@@ -92,22 +93,33 @@
                     name="schema"
                     label="Schema"
                 />
-                    <!-- icon="schema" -->
             </q-tabs>
 
-            <div
-                class="flex-1 min-h-0 min-w-0 overflow-hidden"
-            >
+            <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
                 <ResultTab
                     v-if="activeSubTab === 'data'"
                     :result="result"
+                    :loading="loading"
+                    :can-previous="canPrevious"
+                    :can-next="canNext"
+                    :can-last="canLast"
+                    :total-rows="totalRows"
+                    :fetching-last="fetchingLast"
+                    :sort-column="sortColumn"
+                    :sort-direction="sortDirection"
+                    @sort="(column, direction) => emit('sort', column, direction)"
+                    @previous="emit('previous')"
+                    @next="emit('next')"
+                    @last="emit('last')"
+                    @stop="emit('stop')"
+                    @refresh="emit('refresh')"
                 />
-        
-                <SchemaTab
-                    v-else
+                <IndexSchema
+                    v-else-if="activeSubTab === 'schema'"
                     :result="result"
                 />
             </div>
+
 
         </template>
 
@@ -132,20 +144,31 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { QueryResult } from "@/types/queryTab";
-
-
-
 import ResultTab from "./ResultTab.vue";
-import SchemaTab from "./SchemaTab.vue";
+import IndexSchema from "./Schema/Index.vue";
 
 const props = defineProps<{
     result: QueryResult | null;
     loading?: boolean;
+    canPrevious?: boolean;
+    canNext?: boolean;
+    canLast?: boolean;
+    totalRows?: number;
+    fetchingLast?: boolean;
+    sortColumn?: number;
+    sortDirection?: "asc" | "desc";
+    pageError?: string;
     error?: string | null;
 }>();
 
 const emit = defineEmits<{
     close: [];
+    previous: [];
+    next: [];
+    last: [];
+    stop: [];
+    refresh: [];
+    sort: [column: number, direction?: "asc" | "desc"];
 }>();
 
 const activeSubTab = ref<"data" | "schema">("data");

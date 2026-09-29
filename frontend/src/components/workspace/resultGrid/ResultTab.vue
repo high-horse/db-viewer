@@ -1,5 +1,5 @@
 <template>
-    <div class="relative h-full w-full overflow-hidden bg-[#100e0c]">
+    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#100e0c]">
         <!-- =========================================================
              TABLE
              ========================================================= -->
@@ -9,17 +9,17 @@
             square
             dense
             dark
-            :rows="paginatedRows"
+            :rows="mappedRows"
             :columns="mappedColumns"
             row-key="id"
             :pagination="{
-                rowsPerPage: rowsPerPage,
+                rowsPerPage: 0,
             }"
             :virtual-scroll-item-size="28"
-            class="absolute inset-0 data-explorer-grid bg-transparent"
+            class="data-explorer-grid bg-transparent"
             table-class="table-fixed"
-            table-style="min-width: 100%; width: max-content;"
-            hide-pagination
+            :style="{ '--result-table-width': `${tableWidth}px`, '--row-number-width': `${snColumnWidth}px` }"
+            hide-bottom
         >
             <!-- =====================================================
                  HEADER
@@ -33,10 +33,15 @@
                         :props="props"
                         class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#292521] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
                         :class="{
+                            'cursor-pointer': col.name !== 'sn' && result.CanNavigate,
                             'sticky-col-header pl-2 pr-1 text-left font-normal text-[#4b5563]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
+                        :tabindex="col.name !== 'sn' && result.CanNavigate ? 0 : undefined"
+                        :aria-sort="activeSortColumn === col.name ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                        @click="toggleSort(col.name)"
+                        @keydown.enter.prevent="toggleSort(col.name)"
                     >
                         <div
                             class="flex w-full min-w-0 items-center overflow-hidden whitespace-nowrap"
@@ -62,9 +67,9 @@
 
                             <!-- Sort indicator -->
                             <q-icon
-                                v-if="activeSortColumn === col.name"
+                                v-if="col.name !== 'sn' && result.CanNavigate"
                                 :name="
-                                    sortDirection === 'asc'
+                                    activeSortColumn !== col.name ? 'unfold_more' : sortDirection === 'asc'
                                         ? 'arrow_upward'
                                         : 'arrow_downward'
                                 "
@@ -77,7 +82,11 @@
                         <span
                             v-if="col.name !== 'sn'"
                             class="column-resizer"
-                            @mousedown.stop="startResize($event, col.name)"
+                            role="separator"
+                            aria-orientation="vertical"
+                            :aria-label="`Resize ${col.label}`"
+                            @pointerdown.stop.prevent="startResize($event, col.name)"
+                            @click.stop
                         />
 
                         <!-- Column tooltip -->
@@ -105,7 +114,7 @@
 
                         <!-- Context menu -->
                         <q-menu
-                            v-if="col.name !== 'sn'"
+                            v-if="col.name !== 'sn' && result.CanNavigate"
                             context-menu
                             class="min-w-[150px] border border-[#292521] bg-[#1c1916] text-gray-300 shadow-xl"
                         >
@@ -115,6 +124,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="sortColumn(col.name, 'asc')"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -127,7 +137,7 @@
 
                                 <q-item-section>
                                     <q-item-label class="font-mono text-[11px]">
-                                        Sort Ascending
+                                        Sort ascending
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
@@ -138,6 +148,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="sortColumn(col.name, 'desc')"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -150,7 +161,7 @@
 
                                 <q-item-section>
                                     <q-item-label class="font-mono text-[11px]">
-                                        Sort Descending
+                                        Sort descending
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
@@ -164,6 +175,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="clearSort"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -207,9 +219,9 @@
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
-                            <span class="text-grey-8">
+                            <span class="row-number">
                                 {{
-                                    (currentPage - 1) * rowsPerPage +
+                                    rowOffset +
                                     props.rowIndex +
                                     1
                                 }}
@@ -239,46 +251,24 @@
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
-                <!-- Refresh -->
-                <button
-                    type="button"
-                    class="flex h-[24px] w-[24px] items-center justify-center rounded text-gray-500 transition-colors hover:bg-[#292521] hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
-                    :disabled="isRefreshing"
-                    title="Refresh"
-                    @click="refresh"
-                >
-                    <q-icon
-                        name="refresh"
-                        size="16px"
-                        :class="{ 'animate-spin': isRefreshing }"
-                    />
+                <button type="button" class="pagination-button" :disabled="loading"
+                    title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
+                    <q-icon name="refresh" size="16px" />
                 </button>
-
-                <span class="font-mono text-[10px] text-gray-600">
-                    {{ totalRows }} rows
+                <span class="font-mono text-[10px] text-gray-500">
+                    <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
+                    <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
+                    <span v-if="result.IsQuery"> · {{ totalRows == null ? 'Total unknown' : `${totalRows} rows total` }}</span>
                 </span>
             </div>
-
-            <!-- Right side pagination -->
-            <div class="flex items-center gap-1">
-                <!-- First page -->
-                <button
-                    type="button"
-                    class="pagination-button"
-                    :disabled="currentPage === 1"
-                    title="First page"
-                    @click="goToFirstPage"
-                >
-                    <q-icon name="first_page" size="16px" />
-                </button>
-
+            <div v-if="result.IsQuery" class="flex items-center gap-1">
                 <!-- Previous -->
                 <button
                     type="button"
                     class="pagination-button"
-                    :disabled="currentPage === 1"
-                    title="Previous page"
-                    @click="previousPage"
+                    :disabled="loading || !canPrevious"
+                    :title="result.CanNavigate ? 'Previous page' : 'Previous cached page'"
+                    @click="emit('previous')"
                 >
                     <q-icon name="chevron_left" size="16px" />
                 </button>
@@ -287,42 +277,28 @@
                 <div
                     class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#292521] bg-[#100e0c] px-2 font-mono text-[10px] text-gray-400"
                 >
-                    Page {{ currentPage }} / {{ totalPages }}
+                    Page {{ currentPage }} of {{ totalPages ?? '…' }}
                 </div>
 
                 <!-- Next -->
                 <button
                     type="button"
                     class="pagination-button"
-                    :disabled="currentPage >= totalPages"
+                    :disabled="loading || !canNext"
                     title="Next page"
-                    @click="nextPage"
+                    @click="emit('next')"
                 >
                     <q-icon name="chevron_right" size="16px" />
                 </button>
 
-                <!-- Last page -->
-                <button
-                    type="button"
-                    class="pagination-button"
-                    :disabled="currentPage >= totalPages"
-                    title="Last page"
-                    @click="goToLastPage"
-                >
+                <button type="button" class="pagination-button"
+                    :disabled="loading || !canLast"
+                    :title="result.CanNavigate ? 'Go directly to last page' : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </button>
-
-                <!-- Rows per page -->
-                <select
-                    v-model.number="rowsPerPage"
-                    class="ml-2 h-[24px] border border-[#292521] bg-[#100e0c] px-1 font-mono text-[10px] text-gray-400 outline-none"
-                >
-                    <option :value="25">25</option>
-                    <option :value="50">50</option>
-                    <option :value="100">100</option>
-                    <option :value="250">250</option>
-                    <option :value="500">500</option>
-                </select>
+                <button v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
+                    @click="emit('stop')">Stop fetching</button>
+                <span class="ml-2 font-mono text-[10px] text-gray-500">{{ result.PageSize }} rows/page</span>
             </div>
         </div>
     </div>
@@ -344,15 +320,28 @@ import type { QTableColumn } from "quasar";
 import type { QueryResult } from "@/types/queryTab";
 
 const MIN_COLUMN_WIDTH = 60;
-const SN_COLUMN_WIDTH = 45;
+const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * 8 + 24));
 const HEADER_EXTRA_WIDTH = 24;
 
 const props = defineProps<{
     result: QueryResult;
+    loading?: boolean;
+    canPrevious?: boolean;
+    canNext?: boolean;
+    canLast?: boolean;
+    totalRows?: number;
+    fetchingLast?: boolean;
+    sortColumn?: number;
+    sortDirection?: "asc" | "desc";
 }>();
 
 const emit = defineEmits<{
+    previous: [];
+    next: [];
+    last: [];
+    stop: [];
     refresh: [];
+    sort: [column: number, direction?: "asc" | "desc"];
 }>();
 
 /* =========================================================
@@ -360,10 +349,15 @@ const emit = defineEmits<{
    ========================================================= */
 
 const columnWidths = reactive<Record<string, number>>({});
+const gridElement = ref<HTMLElement | null>(null);
+const tableWidth = computed(() => snColumnWidth.value + props.result.Columns.reduce(
+    (width, _column, index) => width + getColumnWidth(`column-${index}`), 0,
+));
+const totalPages = computed(() => props.totalRows == null ? undefined : Math.max(1, Math.ceil(props.totalRows / props.result.PageSize)));
 
 const getColumnWidth = (columnName: string): number => {
     if (columnName === "sn") {
-        return SN_COLUMN_WIDTH;
+        return snColumnWidth.value;
     }
 
     return columnWidths[columnName] ?? MIN_COLUMN_WIDTH;
@@ -402,7 +396,7 @@ const measureHeaderWidths = async () => {
         requestAnimationFrame(() => resolve());
     });
 
-    const table = document.querySelector(
+    const table = gridElement.value?.querySelector(
         ".data-explorer-grid table",
     );
 
@@ -424,7 +418,7 @@ const measureHeaderWidths = async () => {
             return;
         }
 
-        if (columnWidths[column.Name] !== undefined) {
+        if (columnWidths[`column-${index - 1}`] !== undefined) {
             return;
         }
 
@@ -467,7 +461,7 @@ const measureHeaderWidths = async () => {
             contentWidth + HEADER_EXTRA_WIDTH,
         );
 
-        columnWidths[column.Name] = width;
+        columnWidths[`column-${index - 1}`] = width;
     });
 };
 
@@ -491,7 +485,7 @@ const columnSignature = computed(() =>
 watch(columnSignature, async () => {
     const validColumns = new Set(
         props.result.Columns.map(
-            (column) => column.Name,
+            (_column, index) => `column-${index}`,
         ),
     );
 
@@ -503,7 +497,7 @@ watch(columnSignature, async () => {
         },
     );
 
-    currentPage.value = 1;
+
 
     await nextTick();
 
@@ -519,11 +513,15 @@ let resizingColumn: string | null = null;
 let resizeStartX = 0;
 
 let resizeStartWidth = 0;
+let resizeHandle: HTMLElement | null = null;
+let resizePointerId: number | null = null;
 
 const startResize = (
-    event: MouseEvent,
+    event: PointerEvent,
     columnName: string,
 ) => {
+    if (event.button !== 0) return;
+    stopResize();
     event.preventDefault();
     event.stopPropagation();
 
@@ -533,6 +531,9 @@ const startResize = (
 
     const target =
         event.currentTarget as HTMLElement;
+    resizeHandle = target;
+    resizePointerId = event.pointerId;
+    target.setPointerCapture(event.pointerId);
 
     const header =
         target.closest("th") as HTMLElement | null;
@@ -549,18 +550,21 @@ const startResize = (
     );
 
     document.addEventListener(
-        "mousemove",
+        "pointermove",
         handleResize,
     );
 
     document.addEventListener(
-        "mouseup",
+        "pointerup",
         stopResize,
     );
+    document.addEventListener("pointercancel", stopResize);
+    target.addEventListener("lostpointercapture", stopResize);
+    window.addEventListener("blur", stopResize);
 };
 
-const handleResize = (event: MouseEvent) => {
-    if (!resizingColumn) {
+const handleResize = (event: PointerEvent) => {
+    if (!resizingColumn || event.pointerId !== resizePointerId) {
         return;
     }
 
@@ -577,6 +581,14 @@ const handleResize = (event: MouseEvent) => {
 };
 
 const stopResize = () => {
+    if (resizeHandle && resizePointerId !== null) {
+        resizeHandle.removeEventListener("lostpointercapture", stopResize);
+        if (resizeHandle.hasPointerCapture(resizePointerId)) {
+            resizeHandle.releasePointerCapture(resizePointerId);
+        }
+    }
+    resizeHandle = null;
+    resizePointerId = null;
     resizingColumn = null;
 
     document.body.classList.remove(
@@ -584,14 +596,16 @@ const stopResize = () => {
     );
 
     document.removeEventListener(
-        "mousemove",
+        "pointermove",
         handleResize,
     );
 
     document.removeEventListener(
-        "mouseup",
+        "pointerup",
         stopResize,
     );
+    document.removeEventListener("pointercancel", stopResize);
+    window.removeEventListener("blur", stopResize);
 };
 
 onBeforeUnmount(() => {
@@ -602,278 +616,36 @@ onBeforeUnmount(() => {
    SORTING
    ========================================================= */
 
-type SortDirection =
-    | "asc"
-    | "desc"
-    | null;
+const activeSortColumn = computed(() => props.sortColumn ? `column-${props.sortColumn - 1}` : null);
+const sortDirection = computed(() => props.sortDirection ?? null);
 
-const activeSortColumn =
-    ref<string | null>(null);
-
-const sortDirection =
-    ref<SortDirection>(null);
-
-const sortColumn = (
-    columnName: string,
-    direction: "asc" | "desc",
-) => {
-    activeSortColumn.value =
-        columnName;
-
-    sortDirection.value =
-        direction;
-
-    currentPage.value = 1;
+const sortColumn = (columnName: string, direction: "asc" | "desc") => {
+    if (props.loading || !props.result.CanNavigate || columnName === "sn") return;
+    emit("sort", Number(columnName.slice(7)) + 1, direction);
 };
-
 const clearSort = () => {
-    activeSortColumn.value = null;
-
-    sortDirection.value = null;
-
-    currentPage.value = 1;
+    if (!props.loading && props.result.CanNavigate) emit("sort", 0);
+};
+const toggleSort = (columnName: string) => {
+    if (columnName === "sn" || props.loading || !props.result.CanNavigate) return;
+    if (activeSortColumn.value !== columnName) sortColumn(columnName, "asc");
+    else if (sortDirection.value === "asc") sortColumn(columnName, "desc");
+    else clearSort();
 };
 
-/* =========================================================
-   ROW MAPPING
-   ========================================================= */
-
-const mappedRows = computed(() => {
-    const rows =
-        props.result.Rows.map(
-            (row, rowIndex) => {
-                const rowObject =
-                    {
-                        id: rowIndex,
-                    } as Record<
-                        string,
-                        unknown
-                    >;
-
-                props.result.Columns.forEach(
-                    (
-                        column,
-                        columnIndex,
-                    ) => {
-                        rowObject[
-                            column.Name
-                        ] =
-                            row[
-                                columnIndex
-                            ];
-                    },
-                );
-
-                return rowObject;
-            },
-        );
-
-    if (
-        !activeSortColumn.value ||
-        !sortDirection.value
-    ) {
-        return rows;
-    }
-
-    const column =
-        activeSortColumn.value;
-
-    const direction =
-        sortDirection.value === "asc"
-            ? 1
-            : -1;
-
-    return [...rows].sort(
-        (a, b) => {
-            const valueA =
-                a[column];
-
-            const valueB =
-                b[column];
-
-            if (
-                valueA === null ||
-                valueA === undefined
-            ) {
-                if (
-                    valueB === null ||
-                    valueB === undefined
-                ) {
-                    return 0;
-                }
-
-                return -1 * direction;
-            }
-
-            if (
-                valueB === null ||
-                valueB === undefined
-            ) {
-                return 1 * direction;
-            }
-
-            if (
-                typeof valueA ===
-                    "number" &&
-                typeof valueB ===
-                    "number"
-            ) {
-                return (
-                    (valueA - valueB) *
-                    direction
-                );
-            }
-
-            const stringA =
-                String(valueA);
-
-            const stringB =
-                String(valueB);
-
-            const numberA =
-                Number(stringA);
-
-            const numberB =
-                Number(stringB);
-
-            if (
-                stringA.trim() !== "" &&
-                stringB.trim() !== "" &&
-                Number.isFinite(
-                    numberA,
-                ) &&
-                Number.isFinite(
-                    numberB,
-                )
-            ) {
-                return (
-                    (numberA - numberB) *
-                    direction
-                );
-            }
-
-            return (
-                stringA.localeCompare(
-                    stringB,
-                    undefined,
-                    {
-                        numeric: true,
-                        sensitivity:
-                            "base",
-                    },
-                ) * direction
-            );
-        },
-    );
-});
+// Internal column keys preserve duplicate labels and real columns named id/sn.
+const mappedRows = computed(() => props.result.Rows.map((row, index) => {
+    const mapped: Record<string, unknown> = { id: props.result.StartRow + index };
+    row.forEach((value, column) => { mapped[`column-${column}`] = value; });
+    return mapped;
+}));
 
 /* =========================================================
    PAGINATION
    ========================================================= */
 
-const rowsPerPage = ref(100);
-
-const currentPage = ref(1);
-
-const totalRows = computed(
-    () => mappedRows.value.length,
-);
-
-const totalPages = computed(() =>
-    Math.max(
-        1,
-        Math.ceil(
-            totalRows.value /
-                rowsPerPage.value,
-        ),
-    ),
-);
-
-const paginatedRows = computed(() => {
-    const start =
-        (currentPage.value - 1) *
-        rowsPerPage.value;
-
-    const end =
-        start + rowsPerPage.value;
-
-    return mappedRows.value.slice(
-        start,
-        end,
-    );
-});
-
-const goToFirstPage = () => {
-    currentPage.value = 1;
-};
-
-const goToLastPage = () => {
-    currentPage.value =
-        totalPages.value;
-};
-
-const previousPage = () => {
-    if (currentPage.value > 1) {
-        currentPage.value--;
-    }
-};
-
-const nextPage = () => {
-    if (
-        currentPage.value <
-        totalPages.value
-    ) {
-        currentPage.value++;
-    }
-};
-
-/*
- * When rows-per-page changes, return
- * to the first page.
- */
-watch(rowsPerPage, () => {
-    currentPage.value = 1;
-});
-
-/*
- * Prevent current page from becoming
- * invalid after result data changes.
- */
-watch(totalPages, (pages) => {
-    if (currentPage.value > pages) {
-        currentPage.value = pages;
-    }
-});
-
-/* =========================================================
-   REFRESH
-   ========================================================= */
-
-const isRefreshing = ref(false);
-
-const refresh = async () => {
-    if (isRefreshing.value) {
-        return;
-    }
-
-    isRefreshing.value = true;
-
-    try {
-        emit("refresh");
-    } finally {
-        /*
-         * Small delay so the refresh indicator
-         * is visible even for very fast requests.
-         */
-        await new Promise<void>(
-            (resolve) => {
-                setTimeout(resolve, 300);
-            },
-        );
-
-        isRefreshing.value = false;
-    }
-};
+const rowOffset = computed(() => Math.max(0, props.result.StartRow - 1));
+const currentPage = computed(() => Math.floor(rowOffset.value / props.result.PageSize) + 1);
 
 /* =========================================================
    COLUMNS
@@ -894,31 +666,32 @@ const mappedColumns =
                 sortable: false,
 
                 style: `
-                    width: ${SN_COLUMN_WIDTH}px;
-                    min-width: ${SN_COLUMN_WIDTH}px;
-                    max-width: ${SN_COLUMN_WIDTH}px;
+                    width: ${snColumnWidth.value}px;
+                    min-width: ${snColumnWidth.value}px;
+                    max-width: ${snColumnWidth.value}px;
                 `,
 
                 headerStyle: `
-                    width: ${SN_COLUMN_WIDTH}px;
-                    min-width: ${SN_COLUMN_WIDTH}px;
-                    max-width: ${SN_COLUMN_WIDTH}px;
+                    width: ${snColumnWidth.value}px;
+                    min-width: ${snColumnWidth.value}px;
+                    max-width: ${snColumnWidth.value}px;
                 `,
             },
 
             ...props.result.Columns.map(
-                (column) => {
+                (column, index) => {
+                    const key = `column-${index}`;
                     const width =
                         getColumnWidth(
-                            column.Name,
+                            key,
                         );
 
                     return {
-                        name: column.Name,
+                        name: key,
 
                         label: column.Name,
 
-                        field: column.Name,
+                        field: key,
 
                         align: "left" as const,
 
@@ -951,6 +724,15 @@ const mappedColumns =
 </script>
 
 <style scoped>
+.row-number {
+    display: block;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
 /* =========================================================
    RESIZE HANDLE
    ========================================================= */
@@ -965,6 +747,8 @@ const mappedColumns =
     width: 8px;
 
     cursor: col-resize;
+    touch-action: none;
+    user-select: none;
 
     z-index: 70;
 }
@@ -980,7 +764,7 @@ const mappedColumns =
 
     width: 1px;
 
-    background: transparent;
+    background: #3a342e;
 
     transition:
         background-color 80ms ease,
@@ -1013,6 +797,13 @@ const mappedColumns =
    QTABLE CONTAINER
    ========================================================= */
 
+.data-explorer-grid {
+    position: absolute;
+    inset: 0 0 36px;
+    min-width: 0;
+    min-height: 0;
+}
+
 .data-explorer-grid :deep(.q-table__card),
 .data-explorer-grid :deep(.q-table__container) {
     background: transparent !important;
@@ -1023,10 +814,9 @@ const mappedColumns =
 .data-explorer-grid :deep(.q-table__middle) {
     background: #100e0c;
 
-    /*
-     * Leave room for the fixed footer.
-     */
-    padding-bottom: 36px;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
 
     overflow: auto;
 
@@ -1043,10 +833,10 @@ const mappedColumns =
 
 .data-explorer-grid :deep(table) {
     table-layout: fixed;
+    width: var(--result-table-width);
+    min-width: var(--result-table-width);
+    max-width: var(--result-table-width);
 
-    width: max-content;
-
-    min-width: 100%;
 }
 
 /* =========================================================
@@ -1101,6 +891,8 @@ const mappedColumns =
    ========================================================= */
 
 .data-explorer-grid :deep(thead th:first-child) {
+    padding-left: 8px;
+    padding-right: 8px;
     position: sticky;
 
     left: 0;
@@ -1109,11 +901,11 @@ const mappedColumns =
 
     z-index: 60;
 
-    width: 45px;
+    width: var(--row-number-width);
 
-    min-width: 45px;
+    min-width: var(--row-number-width);
 
-    max-width: 45px;
+    max-width: var(--row-number-width);
 
     background: #161310;
 
@@ -1125,19 +917,22 @@ const mappedColumns =
    ========================================================= */
 
 .data-explorer-grid :deep(tbody td:first-child) {
+    padding-left: 8px;
+    padding-right: 8px;
     position: sticky;
 
     left: 0;
 
     z-index: 20;
 
-    width: 45px;
+    width: var(--row-number-width);
 
-    min-width: 45px;
+    min-width: var(--row-number-width);
 
-    max-width: 45px;
+    max-width: var(--row-number-width);
 
-    overflow: hidden;
+    overflow: visible;
+    text-overflow: clip;
 
     background: #100e0c;
 

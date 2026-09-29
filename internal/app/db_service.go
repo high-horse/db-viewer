@@ -10,6 +10,7 @@ import (
 	"db-viewer/internal/engine/drivers/sqlite"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/factory"
+	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
 	"db-viewer/internal/engine/transports"
 	"db-viewer/internal/types"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 type DbService struct {
 	factory     *factory.Factory
 	manager     *manager.ConnectionManager
+	pager       *sqlExecutor.Pager
 	historyRepo *db.HistoryRepository
 }
 
@@ -30,6 +32,7 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 	f.Register(sqlite.NewDriver())
 	return &DbService{
 		factory:     f,
+		pager:       sqlExecutor.NewPager(),
 		manager:     manager.NewConnectionManager(),
 		historyRepo: historyRepo,
 	}
@@ -54,6 +57,7 @@ func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfi
 	}
 
 	if old, ok := s.manager.Active(); ok {
+		s.pager.CloseConnection(old.ID())
 		_ = s.manager.Remove(old.ID())
 	}
 
@@ -70,13 +74,12 @@ func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfi
 	return true, nil
 }
 
-
 func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
 	conn, ok := s.manager.GetActiveConnection()
 	if !ok {
 		return types.Connection{}, false
 	}
-	
+
 	id, err := strconv.Atoi(conn.ID())
 	if err != nil {
 		return types.Connection{}, false
@@ -84,20 +87,28 @@ func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
 
 	config := conn.Config()
 	return types.Connection{
-		Id:       id,
-		Host:     config.Host,
+		Id:   id,
+		Host: config.Host,
 		Port: sql.NullInt64{
 			Int64: int64(config.Port),
 			Valid: true,
 		},
-		Name:     conn.Name(),
-		DBName:   conn.DatabaseName(),
-		Driver:   conn.Type(),
+		Name:   conn.Name(),
+		DBName: conn.DatabaseName(),
+		Driver: conn.Type(),
 	}, true
 }
 
 func (s *DbService) Disconnect(ctx context.Context, connID string) error {
+	s.pager.CloseConnection(connID)
 	return s.manager.Remove(connID)
+}
+
+func (s *DbService) ServiceShutdown() error {
+	for _, conn := range s.manager.List() {
+		s.pager.CloseConnection(conn.ID())
+	}
+	return s.manager.CloseAll()
 }
 
 func (s *DbService) InspectDatabase(ctx context.Context) ([]entities.InspectTableInfo, error) {
@@ -120,53 +131,90 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 		return nil, fmt.Errorf("active connection not found")
 	}
 
+	if queryInput.Type == entities.QueryExecutionClose {
+		s.pager.Close(queryInput.Cursor, conn.ID())
+		return nil, nil
+	}
+	if queryInput.Type == entities.QueryExecutionFetchPaged {
+		result, err := s.pager.Fetch(queryInput.Cursor, conn.ID(), queryInput.Page)
+		if err != nil {
+			return nil, err
+		}
+		response := *result
+		response.Duration = time.Duration(result.Duration.Milliseconds())
+		return &response, nil
+	}
+	if queryInput.Type != entities.QueryExecutionExecute && queryInput.Type != entities.QueryExecuteRefresh && queryInput.Type != entities.QueryExecutionNavigate {
+		return nil, fmt.Errorf("unknown query execution type")
+	}
+	if queryInput.Cursor != "" {
+		s.pager.Close(queryInput.Cursor, conn.ID())
+	}
 	driver, err := s.factory.Driver(conn.Type())
 	if err != nil {
 		return nil, err
 	}
-
-	rawQuery := queryInput.Query
-	cursor := queryInput.Cursor
-	_ = cursor
-	
-	parsed, err := driver.Parser().Parse(rawQuery)
+	parsed, err := driver.Parser().Parse(queryInput.Query)
 	if err != nil {
 		return nil, fmt.Errorf("query parsing error: %w", err)
 	}
-
-	fmt.Println("parsed query", parsed.RawSQL)
-	
-	result, err := driver.Executor().Execute(
-		ctx,
-		conn,
-		parsed.RawSQL,
-	)
-
-
-	historyEntry := db.QueryHistoryEntity{
-		ConnectionId: conn.ID(),
-		DatabaseName: conn.DatabaseName(),
-		QueryText:    rawQuery,
-		Status:       "SUCCESS",
+	sqlConn, ok := conn.(manager.SQLConnection)
+	if !ok || sqlConn.DB() == nil {
+		return nil, fmt.Errorf("active SQL connection not available")
 	}
-
+	start := time.Now()
+	var result *entities.QueryResult
+	if _, pageable := sqlExecutor.PageableSQL(parsed.RawSQL); pageable {
+		queryInput.Query = parsed.RawSQL
+		result, err = s.pager.OpenRead(ctx, sqlConn.DB(), conn.ID(), conn.Type(), queryInput)
+	} else if queryInput.Type == entities.QueryExecutionNavigate || queryInput.SortColumn != 0 {
+		return nil, fmt.Errorf("this statement does not support counted page navigation or sorting")
+	} else {
+		result, err = s.pager.Open(ctx, sqlConn.DB(), conn.ID(), parsed.RawSQL, queryInput.PageSize)
+	}
+	if err == nil {
+		// Do not mutate the page cached by the cursor.
+		response := *result
+		response.Duration = time.Since(start)
+		result = &response
+	}
+	historyEntry := db.QueryHistoryEntity{
+		ConnectionId: conn.ID(), DatabaseName: conn.DatabaseName(),
+		QueryText: queryInput.Query, Status: "SUCCESS",
+	}
 	if err != nil {
 		historyEntry.Status = "ERROR"
-		return nil, fmt.Errorf("SQL execution evaluation error: %w", err)
+	} else {
+		historyEntry.Duration = int(result.Duration.Milliseconds())
+	}
+	if s.historyRepo != nil && queryInput.Type != entities.QueryExecutionNavigate {
+		go func() {
+			logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.historyRepo.Log(logCtx, historyEntry)
+		}()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("SQL execution error: %w", err)
+	}
+	response := *result
+	response.Duration = time.Duration(result.Duration.Milliseconds())
+	return &response, nil
+}
+
+func (s *DbService) GetDDL(ctx context.Context, table string) (string, error) {
+	conn, ok := s.manager.Active()
+	if !ok {
+		return "", fmt.Errorf("active connection not found")
 	}
 
-	fmt.Println("executed ", len(result.Rows))
+	driver, err := s.factory.Driver(conn.Type())
+	if err != nil {
+		return "", err
+	}
 
-	_ = parsed
-	historyEntry.Duration = int(result.Duration)
-	result.Duration = time.Duration(result.Duration.Milliseconds())
+	return driver.Inspector().GetTableDDL(ctx, table)
 
-	go func() {
-		_ = s.historyRepo.Log(ctx, historyEntry)
-	}()
-
-	fmt.Println("executed ", len(result.Rows))
-	return result, nil
 }
 
 func (s *DbService) PingConnection(ctx context.Context, connID string) (bool, error) {

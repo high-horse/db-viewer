@@ -54,12 +54,18 @@ export enum QueryExecutionType {
     QueryExecutionExecute = 0,
     QueryExecutionFetchPaged = 1,
     QueryExecuteRefresh = 2,
+    QueryExecutionClose = 3,
+    QueryExecutionNavigate = 4,
 };
 
 export interface QueryInput {
     "query": string;
     "cursor": string;
     "type": QueryExecutionType;
+    "pageSize": number;
+    "page": number;
+    "sortColumn"?: number;
+    "sortDirection"?: string;
 }
 
 export interface QueryResult {
@@ -70,6 +76,11 @@ export interface QueryResult {
     "duration": time$0.Duration;
     "isQuery": boolean;
     "cursor": string;
+    "hasMore": boolean;
+    "startRow": number;
+    "pageSize": number;
+    "totalRows"?: number | null;
+    "canNavigate": boolean;
 }
 
 export interface SSHConfig {

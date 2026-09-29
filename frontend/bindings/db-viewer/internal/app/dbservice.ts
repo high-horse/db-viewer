@@ -35,6 +35,10 @@ export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connec
     return $Call.ByID(1493165516);
 }
 
+export function GetDDL(table: string): $CancellablePromise<string> {
+    return $Call.ByID(2116919059, table);
+}
+
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {
     return $Call.ByID(2140042053, limit, since);
 }
