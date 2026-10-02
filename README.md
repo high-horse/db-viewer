@@ -57,3 +57,37 @@ Take a moment to familiarize yourself with your project structure:
 4. When ready, build your application with `wails3 build`.
 
 Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+
+## Remote databases over SSH
+
+Select PostgreSQL, MySQL, or MongoDB and enable **Connect through SSH tunnel**. Enter the SSH server host, port (usually 22), username, and either a password or a private key. Keys may be pasted as PEM/OpenSSH text or supplied as a local file path, including `~/.ssh/id_ed25519`. Encrypted keys support a passphrase. Use **Edit SSH Configuration** to change these settings.
+
+The database host and port are resolved from the SSH server. For a database running on that server, use `127.0.0.1` and its database port (5432 for PostgreSQL, 3306 for MySQL, or 27017 for MongoDB). The SSH server must allow TCP forwarding.
+
+Server keys are checked against `~/.ssh/known_hosts` using Go's [SSH library](https://pkg.go.dev/golang.org/x/crypto/ssh). Before connecting for the first time, run `ssh -p 22 user@server` and verify its fingerprint before accepting it. Unknown or changed keys are rejected.
+
+**Test Connection** checks SSH authentication and database access. Saved connections retain their SSH settings. Disable **Save connection** for a temporary session. Tunnels close on disconnect, failed database connection, or application shutdown. SQLite remains a local file connection.
+
+## MongoDB
+
+Select **MongoDB**, enter a host and port (default `27017`), and choose a database. Username and password are optional for servers without authentication. Host connections authenticate against `admin`. For other authentication sources, TLS, replica sets, or Atlas, enter a `mongodb://` or `mongodb+srv://` URI in the host field, for example `mongodb://user:password@localhost:27017/?authSource=mydb`. URI credentials and options are used directly; port and separate credential fields are disabled. The Database field selects the database used by commands.
+
+MongoDB also supports the SSH settings above. Use a plain database hostname and port with SSH. Tunnels connect directly to that MongoDB member so replica-set discovery cannot bypass the tunnel; connect to a primary for writes. Saved connections keep the URI or SSH configuration.
+
+Double-click a collection to browse its documents. The query console accepts one MongoDB database command as JSON or Extended JSON (rather than JavaScript shell expressions), following the driver's [database command API](https://www.mongodb.com/docs/drivers/go/v1.x/usage-examples/command/):
+
+```json
+{"find":"users","filter":{"active":true},"sort":{"_id":1}}
+```
+
+```json
+{"aggregate":"users","pipeline":[{"$match":{"active":true}},{"$group":{"_id":"$role","count":{"$sum":1}}}]}
+```
+
+```json
+{"find":"users","filter":{"_id":{"$oid":"507f1f77bcf86cd799439011"}}}
+```
+
+Supported commands include `find`, `aggregate`, `count`, `distinct`, `listCollections`, `listIndexes`, `collStats`, `dbStats`, `ping`, `hello`, `insert`, `update`, `delete`, `findAndModify`, `create`, `createIndexes`, `drop`, and `dropIndexes`. Readonly connections reject writes, including aggregation pipelines using `$out` or `$merge`. Change streams and tailable cursors are not supported.
+
+Documents are displayed as canonical Extended JSON so BSON types and large integers keep their precision. Double-click a document cell to inspect its formatted contents. Cursor results use sequential pages with up to 500 documents per page (100 by default), retain at most 16 open streams, and expire after 10 minutes. Sort using the MongoDB command's `sort` field or an aggregation `$sort` stage. Closing results, disconnecting, and application shutdown release MongoDB cursors.

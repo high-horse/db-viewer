@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
@@ -226,6 +226,14 @@ const connectionStore = useConnectionStore();
 const { activeConnection, activeConnectionMetadata } =
     storeToRefs(connectionStore);
 
+watch(() => activeConnection.value?.driver, (driver) => {
+    for (const tab of queryTabsStore.tabs) {
+        if (tab.type === "query" && !tab.sql.trim()) {
+            tab.title = tab.title.replace(/\.(sql|json)$/, driver === "mongodb" ? ".json" : ".sql");
+        }
+    }
+}, { immediate: true });
+
 const sidebarWidth = ref(20);
 const editorHeight = ref(45);
 
@@ -246,7 +254,7 @@ async function handleTableSelect(node: {
     label: string;
     type?: string;
 }) {
-    if (node.type !== "table" && node.type !== "view") {
+    if (node.type !== "table" && node.type !== "view" && node.type !== "collection") {
         return;
     }
 
@@ -263,6 +271,12 @@ async function executeTableResult(
         type?: string;
     },
 ) {
+    if (activeConnection.value?.driver === "mongodb") {
+        const command = JSON.stringify({ find: node.label, filter: {} }, null, 2);
+        queryTabsStore.updateSql(id, command);
+        await executeQuery(id, command);
+        return;
+    }
     const tableName = node.id.split(".")
         .map(part => quoteIdentifier(part, activeConnection.value?.driver)).join(".");
     const sql = `SELECT * FROM ${tableName};`;

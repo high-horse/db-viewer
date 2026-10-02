@@ -22,7 +22,7 @@ import { autocompletion } from "@codemirror/autocomplete";
 
 const props = defineProps<{
     modelValue: string;
-    dbDriver: "pgx" | "mysql" | "sqlite";
+    dbDriver: "pgx" | "mysql" | "sqlite" | "mongodb";
 }>();
 
 const emit = defineEmits<{
@@ -46,6 +46,11 @@ function getDialect(driver: string) {
         default:
             return PostgreSQL;
     }
+}
+
+function languageExtension(driver: string) {
+    if (driver === "mongodb") return [];
+    return sql({ dialect: getDialect(driver), upperCaseKeywords: true });
 }
 
 function sqlSyntaxLinter(view: EditorView): Diagnostic[] {
@@ -75,6 +80,8 @@ function getCurrentQuery(view: EditorView): string | null {
         const selected = view.state.doc.sliceString(from, to).trim();
         return selected || null;
     }
+
+    if (props.dbDriver === "mongodb") return view.state.doc.toString().trim() || null;
 
     // 2. Use the syntax tree to find the Statement at cursor
     const tree = syntaxTree(view.state);
@@ -140,10 +147,7 @@ onMounted(() => {
         extensions: [
             // SQL syntax highlighting
             sqlDialect.of(
-                sql({
-                    dialect: getDialect(props.dbDriver),
-                    upperCaseKeywords: true,
-                }),
+                languageExtension(props.dbDriver),
             ),
 
             autocompletion({
@@ -284,9 +288,7 @@ watch(
 
         editorView.dispatch({
             effects: sqlDialect.reconfigure(
-                sql({
-                    dialect: getDialect(driver),
-                }),
+                languageExtension(driver),
             ),
         });
     },

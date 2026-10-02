@@ -13,7 +13,7 @@
             <span
                 class="font-bold text-white tracking-wide text-sm"
             >
-                SQL Client Pro
+                DB Viewer
             </span>
 
             <q-badge
