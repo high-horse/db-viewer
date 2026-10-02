@@ -73,6 +73,8 @@
                                         >
                                             <ResultGrid
                                         :key="queryTabsStore.activeTab.id"
+                                        :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
+                                        @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
                                         :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
                                         :total-rows="queryTabsStore.activeTab.totalRows"
                                         :sort-column="queryTabsStore.activeTab.sortColumn"
@@ -129,6 +131,8 @@
                                 >
                                     <ResultGrid
                                         :key="queryTabsStore.activeTab.id"
+                                        :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
+                                        @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
                                         :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
                                         :total-rows="queryTabsStore.activeTab.totalRows"
                                         :sort-column="queryTabsStore.activeTab.sortColumn"

@@ -1,5 +1,31 @@
 <template>
     <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#100e0c]">
+        <form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyFilter">
+            <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
+            <div class="result-filter-input" :class="{ 'has-error': filterError }">
+                <span class="text-gray-500 select-none">WHERE</span>
+                <input v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
+                <q-icon v-if="filterError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ filterError }}</q-tooltip></q-icon>
+            </div>
+            <button type="submit" class="filter-action" :disabled="loading" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></button>
+            <button type="button" class="filter-action" :disabled="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></button>
+            <button type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
+                <q-icon name="help_outline" size="15px" />
+                <q-menu class="border border-[#292521] bg-[#161310] text-gray-300">
+                    <div class="max-w-sm p-3 font-mono text-[11px] leading-6">
+                        <div class="text-amber-400">Combine conditions with AND / OR</div>
+                        <div>age &gt;= 18 AND status = 'active'</div>
+                        <div>(name LIKE 'A%' OR name LIKE 'B%')</div>
+                        <div>status IN ('active', 'pending')</div>
+                        <div>deleted_at IS NULL</div>
+                        <div class="mt-2 text-gray-500">Use double quotes for column names with spaces.<br />Enter to apply · Esc to reset · Current page only<br />Sorting with a filter orders matching rows on this page.</div>
+                        <div class="mt-2 text-gray-500">Columns: {{ result.Columns.map(column => column.Name).join(', ') }}</div>
+                    </div>
+                </q-menu>
+            </button>
+            <span class="filter-count">{{ filteredRows.length }}/{{ result.Rows.length }} <span class="filter-scope">on this page</span></span>
+        </form>
+
         <!-- =========================================================
              TABLE
              ========================================================= -->
@@ -17,6 +43,7 @@
             }"
             :virtual-scroll-item-size="28"
             class="data-explorer-grid bg-transparent"
+            :class="{ 'has-filter-toolbar': result.IsQuery }"
             table-class="table-fixed"
             :style="{ '--result-table-width': `${tableWidth}px`, '--row-number-width': `${snColumnWidth}px` }"
             hide-bottom
@@ -33,12 +60,12 @@
                         :props="props"
                         class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#292521] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
                         :class="{
-                            'cursor-pointer': col.name !== 'sn' && result.CanNavigate,
+                            'cursor-pointer': col.name !== 'sn' && (result.CanSort ?? result.CanNavigate),
                             'sticky-col-header pl-2 pr-1 text-left font-normal text-[#4b5563]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
-                        :tabindex="col.name !== 'sn' && result.CanNavigate ? 0 : undefined"
+                        :tabindex="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate) ? 0 : undefined"
                         :aria-sort="activeSortColumn === col.name ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
                         @click="toggleSort(col.name)"
                         @keydown.enter.prevent="toggleSort(col.name)"
@@ -67,7 +94,7 @@
 
                             <!-- Sort indicator -->
                             <q-icon
-                                v-if="col.name !== 'sn' && result.CanNavigate"
+                                v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                                 :name="
                                     activeSortColumn !== col.name ? 'unfold_more' : sortDirection === 'asc'
                                         ? 'arrow_upward'
@@ -114,7 +141,7 @@
 
                         <!-- Context menu -->
                         <q-menu
-                            v-if="col.name !== 'sn' && result.CanNavigate"
+                            v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                             context-menu
                             class="min-w-[150px] border border-[#292521] bg-[#1c1916] text-gray-300 shadow-xl"
                         >
@@ -275,6 +302,10 @@
                 </span>
             </div>
             <div v-if="result.IsQuery" class="flex items-center gap-1">
+                <button type="button" class="pagination-button" :disabled="loading || !canFirst"
+                    title="Go to first page" aria-label="Go to first page" @click="emit('first')">
+                    <q-icon name="first_page" size="16px" />
+                </button>
                 <!-- Previous -->
                 <button
                     type="button"
@@ -331,6 +362,8 @@ import {
 import type { QTableColumn } from "quasar";
 
 import type { QueryResult } from "@/types/queryTab";
+import { compileResultFilter } from "@/utils/resultFilter";
+import { sortResultRows } from "@/utils/resultSort";
 
 const documentDialog = ref(false);
 const selectedDocument = ref("");
@@ -348,6 +381,7 @@ const HEADER_EXTRA_WIDTH = 24;
 const props = defineProps<{
     result: QueryResult;
     loading?: boolean;
+    canFirst?: boolean;
     canPrevious?: boolean;
     canNext?: boolean;
     canLast?: boolean;
@@ -358,6 +392,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    first: [];
     previous: [];
     next: [];
     last: [];
@@ -638,25 +673,80 @@ onBeforeUnmount(() => {
    SORTING
    ========================================================= */
 
-const activeSortColumn = computed(() => props.sortColumn ? `column-${props.sortColumn - 1}` : null);
-const sortDirection = computed(() => props.sortDirection ?? null);
+const pageSort = ref<{ column: number; direction?: "asc" | "desc" } | null>(null);
+const effectiveSort = computed(() => appliedFilter.value && pageSort.value
+    ? pageSort.value : { column: props.sortColumn ?? 0, direction: props.sortDirection });
+const activeSortColumn = computed(() => effectiveSort.value.column ? `column-${effectiveSort.value.column - 1}` : null);
+const sortDirection = computed(() => effectiveSort.value.direction ?? null);
 
 const sortColumn = (columnName: string, direction: "asc" | "desc") => {
-    if (props.loading || !props.result.CanNavigate || columnName === "sn") return;
-    emit("sort", Number(columnName.slice(7)) + 1, direction);
+    if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate) || columnName === "sn") return;
+    const column = Number(columnName.slice(7)) + 1;
+    if (appliedFilter.value) {
+        pageSort.value = { column, direction };
+        return;
+    }
+    emit("sort", column, direction);
 };
 const clearSort = () => {
-    if (!props.loading && props.result.CanNavigate) emit("sort", 0);
+    if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
+    if (appliedFilter.value) pageSort.value = { column: 0 };
+    else emit("sort", 0);
 };
 const toggleSort = (columnName: string) => {
-    if (columnName === "sn" || props.loading || !props.result.CanNavigate) return;
+    if (columnName === "sn" || props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
     if (activeSortColumn.value !== columnName) sortColumn(columnName, "asc");
     else if (sortDirection.value === "asc") sortColumn(columnName, "desc");
     else clearSort();
 };
 
+const filterDraft = ref("");
+const appliedFilter = ref("");
+const filterError = ref("");
+const filterPredicate = computed(() => {
+    try { return compileResultFilter(appliedFilter.value, props.result.Columns.map(column => column.Name)); }
+    catch { return null; }
+});
+function applyFilter() {
+    try {
+        const predicate = compileResultFilter(filterDraft.value, props.result.Columns.map(column => column.Name));
+        props.result.Rows.forEach(row => predicate(row));
+        appliedFilter.value = filterDraft.value.trim();
+        if (!appliedFilter.value) pageSort.value = null;
+        filterError.value = "";
+    } catch (error) {
+        filterError.value = error instanceof Error ? error.message : String(error);
+    }
+}
+function clearFilter() {
+    filterDraft.value = "";
+    appliedFilter.value = "";
+    pageSort.value = null;
+    filterError.value = "";
+}
+watch(() => props.result, () => {
+    try {
+        const predicate = compileResultFilter(appliedFilter.value, props.result.Columns.map(column => column.Name));
+        props.result.Rows.forEach(row => predicate(row));
+        filterError.value = "";
+    } catch (error) {
+        filterError.value = error instanceof Error ? error.message : String(error);
+    }
+});
+const filteredRows = computed(() => {
+    const rows = props.result.Rows
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => {
+            try { return filterPredicate.value?.(row) ?? true; }
+            catch { return true; }
+        });
+    return appliedFilter.value && pageSort.value
+        ? sortResultRows(rows, pageSort.value.column, pageSort.value.direction)
+        : rows;
+});
+
 // Internal column keys preserve duplicate labels and real columns named id/sn.
-const mappedRows = computed(() => props.result.Rows.map((row, index) => {
+const mappedRows = computed(() => filteredRows.value.map(({ row, index }) => {
     const mapped: Record<string, unknown> = { id: props.result.StartRow + index };
     row.forEach((value, column) => { mapped[`column-${column}`] = value; });
     return mapped;
@@ -746,6 +836,40 @@ const mappedColumns =
 </script>
 
 <style scoped>
+.result-filter-bar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    background: #161310;
+    border-bottom: 1px solid #292521;
+    font-family: monospace;
+    font-size: 11px;
+}
+.result-filter-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    height: 25px;
+    padding: 0 8px;
+    border: 1px solid #292521;
+    background: #100e0c;
+}
+.result-filter-input:focus-within { border-color: #a97724; }
+.result-filter-input.has-error { border-color: #b45353; }
+.result-filter-input input { flex: 1; min-width: 0; color: #d1d5db; background: transparent; border: 0; outline: none; font: inherit; }
+.result-filter-input input::placeholder { color: #6b7280; }
+.filter-action { display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
+.filter-action:hover:not(:disabled), .filter-action:focus-visible { color: #fbbf24; background: #292521; border-color: #40382e; }
+.filter-action:disabled { opacity: .3; cursor: default; }
+.filter-count { color: #6b7280; white-space: nowrap; padding-left: 6px; }
+@media (max-width: 600px) { .filter-scope { display: none; } }
+
 .row-number {
     display: block;
     color: #94a3b8;
@@ -824,6 +948,10 @@ const mappedColumns =
     inset: 0 0 36px;
     min-width: 0;
     min-height: 0;
+}
+
+.data-explorer-grid.has-filter-toolbar {
+    top: 36px;
 }
 
 .data-explorer-grid :deep(.q-table__card),

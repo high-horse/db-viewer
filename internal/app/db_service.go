@@ -311,15 +311,15 @@ func (s *DbService) executeMongo(ctx context.Context, conn manager.Connection, i
 	if input.Type == entities.QueryExecutionFetchPaged {
 		result, err = s.mongoPager.Fetch(ctx, input.Cursor, conn.ID(), input.Page)
 	} else {
-		if input.Type != entities.QueryExecutionExecute && input.Type != entities.QueryExecuteRefresh {
-			return nil, fmt.Errorf("MongoDB supports sequential result pages; run the query again to refresh")
+		if input.Type != entities.QueryExecutionExecute && input.Type != entities.QueryExecuteRefresh && input.Type != entities.QueryExecutionNavigate {
+			return nil, fmt.Errorf("unknown MongoDB query execution type")
 		}
 		if input.SortColumn != 0 {
 			return nil, fmt.Errorf("specify MongoDB sorting in the JSON command")
 		}
 		s.mongoPager.Close(input.Cursor, conn.ID())
-		result, err = s.mongoPager.Open(ctx, conn, input.Query, input.PageSize)
-		if s.historyRepo != nil {
+		result, err = s.mongoPager.OpenInput(ctx, conn, input)
+		if s.historyRepo != nil && input.Type != entities.QueryExecutionNavigate {
 			entry := db.QueryHistoryEntity{ConnectionId: conn.ID(), DatabaseName: conn.DatabaseName(), QueryText: input.Query, Status: "SUCCESS"}
 			if err != nil {
 				entry.Status = "ERROR"
