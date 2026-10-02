@@ -30,14 +30,14 @@
                     {{ result.Duration }}ms execution latency
                 </span>
 
-                 <button
+                 <!-- <q-btn flat dense no-caps
                     type="button"
                     class="w-5 h-5 flex items-center justify-center rounded text-[#4b4540] hover:text-[#d1d5db] hover:bg-[#292521]"
                     title="Hide resultsssssss"
                     @click="emit('close')"
                 >
                     <q-icon name="close" size="14px" />
-                </button>
+                </q-btn> -->
             </div>
         </div>
 

@@ -1,15 +1,15 @@
 <template>
     <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#100e0c]">
-        <form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyFilter">
+        <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyFilter">
             <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
                 <span class="text-gray-500 select-none">WHERE</span>
-                <input v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
+                <q-input borderless dense dark hide-bottom-space class="filter-expression" input-class="font-mono text-[11px]" v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
                 <q-icon v-if="filterError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ filterError }}</q-tooltip></q-icon>
             </div>
-            <button type="submit" class="filter-action" :disabled="loading || editState?.saving" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></button>
-            <button type="button" class="filter-action" :disabled="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></button>
-            <button type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
+            <q-btn flat dense no-caps type="submit" class="filter-action" :disable="loading || editState?.saving" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></q-btn>
+            <q-btn flat dense no-caps type="button" class="filter-action" :disable="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></q-btn>
+            <q-btn flat dense no-caps type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
                 <q-icon name="help_outline" size="15px" />
                 <q-menu class="border border-[#292521] bg-[#161310] text-gray-300">
                     <div class="max-w-sm p-3 font-mono text-[11px] leading-6">
@@ -22,9 +22,9 @@
                         <div class="mt-2 text-gray-500">Columns: {{ result.Columns.map(column => column.Name).join(', ') }}</div>
                     </div>
                 </q-menu>
-            </button>
+            </q-btn>
             <span class="filter-count">{{ filteredRows.length }}/{{ workingRows.length }} <span class="filter-scope">on this page</span></span>
-        </form>
+        </q-form>
 
         <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :loading="loading" />
 
@@ -247,8 +247,11 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
-                        @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)"
+                        @click="$event.detail === 3 && (tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type))"
+
                     >
+                        <!-- @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)" -->
+
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
                             <span class="row-number">
@@ -293,10 +296,10 @@
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
-                <button type="button" class="pagination-button" :disabled="loading || navigationBlocked"
+                <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked"
                     title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
-                </button>
+                </q-btn>
                 <span class="font-mono text-[10px] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
@@ -304,20 +307,20 @@
                 </span>
             </div>
             <div v-if="result.IsQuery" class="flex items-center gap-1">
-                <button type="button" class="pagination-button" :disabled="loading || navigationBlocked || !canFirst"
+                <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked || !canFirst"
                     title="Go to first page" aria-label="Go to first page" @click="emit('first')">
                     <q-icon name="first_page" size="16px" />
-                </button>
+                </q-btn>
                 <!-- Previous -->
-                <button
+                <q-btn flat dense no-caps
                     type="button"
                     class="pagination-button"
-                    :disabled="loading || navigationBlocked || !canPrevious"
+                    :disable="loading || navigationBlocked || !canPrevious"
                     :title="result.CanNavigate ? 'Previous page' : 'Previous cached page'"
                     @click="emit('previous')"
                 >
                     <q-icon name="chevron_left" size="16px" />
-                </button>
+                </q-btn>
 
                 <!-- Page -->
                 <div
@@ -327,23 +330,23 @@
                 </div>
 
                 <!-- Next -->
-                <button
+                <q-btn flat dense no-caps
                     type="button"
                     class="pagination-button"
-                    :disabled="loading || navigationBlocked || !canNext"
+                    :disable="loading || navigationBlocked || !canNext"
                     title="Next page"
                     @click="emit('next')"
                 >
                     <q-icon name="chevron_right" size="16px" />
-                </button>
+                </q-btn>
 
-                <button type="button" class="pagination-button"
-                    :disabled="loading || navigationBlocked || !canLast"
+                <q-btn flat dense no-caps type="button" class="pagination-button"
+                    :disable="loading || navigationBlocked || !canLast"
                     :title="result.CanNavigate ? 'Go directly to last page' : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
-                </button>
-                <button v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
-                    @click="emit('stop')">Stop fetching</button>
+                </q-btn>
+                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
+                    @click="emit('stop')">Stop fetching</q-btn>
                 <span class="ml-2 font-mono text-[10px] text-gray-500">{{ result.PageSize }} rows/page</span>
             </div>
         </div>
@@ -892,11 +895,13 @@ const mappedColumns =
 }
 .result-filter-input:focus-within { border-color: #a97724; }
 .result-filter-input.has-error { border-color: #b45353; }
-.result-filter-input input { flex: 1; min-width: 0; color: #d1d5db; background: transparent; border: 0; outline: none; font: inherit; }
-.result-filter-input input::placeholder { color: #6b7280; }
-.filter-action { display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
-.filter-action:hover:not(:disabled), .filter-action:focus-visible { color: #fbbf24; background: #292521; border-color: #40382e; }
-.filter-action:disabled { opacity: .3; cursor: default; }
+.filter-expression { flex: 1; min-width: 0; }
+.filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
+.filter-expression :deep(.q-field__native) { padding: 0; color: #d1d5db; }
+.filter-expression :deep(input::placeholder) { color: #6b7280; }
+.filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: #292521; border-color: #40382e; }
+.filter-action.disabled { opacity: .3; cursor: default; }
 .filter-count { color: #6b7280; white-space: nowrap; padding-left: 6px; }
 @media (max-width: 600px) { .filter-scope { display: none; } }
 
@@ -1245,6 +1250,8 @@ const mappedColumns =
    ========================================================= */
 
 .pagination-button {
+    min-height: 24px;
+    padding: 0;
     display: flex;
 
     height: 24px;
@@ -1268,7 +1275,7 @@ const mappedColumns =
 }
 
 .pagination-button:hover:not(
-        :disabled
+        .disabled
     ) {
     background: #292521;
 
@@ -1277,7 +1284,7 @@ const mappedColumns =
     color: #f59e0b;
 }
 
-.pagination-button:disabled {
+.pagination-button.disabled {
     cursor: not-allowed;
 
     opacity: 0.3;

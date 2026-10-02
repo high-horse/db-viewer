@@ -107,7 +107,7 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <button
+                                <q-btn flat dense no-caps
                                     v-for="color in colors"
                                     :key="color"
                                     type="button"
@@ -117,7 +117,7 @@
                                             ? 'border-white ring-2 ring-white/40'
                                             : ''
                                     "
-                                    :style="{ backgroundColor: color }"
+                                    :style="{ backgroundColor: color, minHeight: '28px', padding: 0 }"
                                     @click="form.color = color"
                                 >
                                     <q-icon
@@ -126,7 +126,7 @@
                                         size="16px"
                                         color="white"
                                     />
-                                </button>
+                                </q-btn>
 
                                 <span class="text-xs text-grey-5 ml-2">
                                     {{ form.color }}
