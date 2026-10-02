@@ -10,7 +10,7 @@
                 <span
                     v-if="result && !loading"
                     class="text-teal-400 font-bold"
-                >   
+                >
                     • {{ result.Rows.length }} rows in this page
                 </span>
 
@@ -30,10 +30,10 @@
                     {{ result.Duration }}ms execution latency
                 </span>
 
-                <button
+                 <button
                     type="button"
                     class="w-5 h-5 flex items-center justify-center rounded text-[#4b4540] hover:text-[#d1d5db] hover:bg-[#292521]"
-                    title="Hide results"
+                    title="Hide resultsssssss"
                     @click="emit('close')"
                 >
                     <q-icon name="close" size="14px" />
@@ -88,7 +88,7 @@
                     label="Data"
                 />
                     <!-- icon="table_rows" -->
-            
+
                 <q-tab
                     name="schema"
                     label="Schema"
@@ -100,6 +100,7 @@
                     v-if="activeSubTab === 'data'"
                     :result="result"
                     :loading="loading"
+                    :can-first="canFirst"
                     :can-previous="canPrevious"
                     :can-next="canNext"
                     :can-last="canLast"
@@ -108,6 +109,7 @@
                     :sort-column="sortColumn"
                     :sort-direction="sortDirection"
                     @sort="(column, direction) => emit('sort', column, direction)"
+                    @first="emit('first')"
                     @previous="emit('previous')"
                     @next="emit('next')"
                     @last="emit('last')"
@@ -150,6 +152,7 @@ import IndexSchema from "./Schema/Index.vue";
 const props = defineProps<{
     result: QueryResult | null;
     loading?: boolean;
+    canFirst?: boolean;
     canPrevious?: boolean;
     canNext?: boolean;
     canLast?: boolean;
@@ -163,6 +166,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     close: [];
+    first: [];
     previous: [];
     next: [];
     last: [];

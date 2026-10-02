@@ -173,6 +173,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       Rows: (response.rows ?? []).map(row => row ?? []),
       Cursor: response.cursor, HasMore: response.hasMore,
       StartRow: response.startRow, PageSize: response.pageSize, IsQuery: response.isQuery, CanNavigate: response.canNavigate,
+      CanSort: response.canNavigate && useConnectionStore().activeConnection?.driver !== "mongodb",
     };
   }
 
@@ -208,19 +209,21 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     } finally { tab.loading = false; }
   }
 
-  async function navigate(id: string, direction: "previous" | "next" | "last") {
+  async function navigate(id: string, direction: "first" | "previous" | "next" | "last") {
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || !tab.pages?.length) return;
     if (tab.result?.CanNavigate) {
       const page = Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1;
       const lastPage = Math.max(1, Math.ceil((tab.totalRows ?? 0) / tab.result.PageSize));
-      const target = direction === "last" ? lastPage : page + (direction === "next" ? 1 : -1);
+      const target = direction === "first" ? 1 : direction === "last" ? lastPage : page + (direction === "next" ? 1 : -1);
       if (target < 1 || target > lastPage || target === page) return;
       await fetchReadPage(tab, target);
       return;
     }
     const index = tab.pageIndex ?? 0;
-    const target = direction === "last"
+    const target = direction === "first"
+      ? tab.pages.findIndex(result => result.StartRow === 1)
+      : direction === "last"
       ? tab.pages.length - (tab.cursor ? 0 : 1)
       : index + (direction === "next" ? 1 : -1);
     if (target < 0) return;

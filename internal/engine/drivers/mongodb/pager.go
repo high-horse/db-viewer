@@ -31,12 +31,18 @@ type documentCursor struct {
 	last       *entities.QueryResult
 	closed     bool
 	timer      *time.Timer
+	totalRows  *int64
 }
 
 func NewPager() *Pager { return &Pager{cursors: make(map[string]*documentCursor)} }
 
 func (p *Pager) Open(ctx context.Context, conn manager.Connection, query string, size int) (*entities.QueryResult, error) {
-	command, err := parseCommand(query)
+	return p.OpenInput(ctx, conn, entities.QueryInput{Query: query, PageSize: size})
+}
+
+func (p *Pager) OpenInput(ctx context.Context, conn manager.Connection, input entities.QueryInput) (*entities.QueryResult, error) {
+	size := input.PageSize
+	command, err := parseCommand(input.Query)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +62,27 @@ func (p *Pager) Open(ctx context.Context, conn manager.Connection, query string,
 	operation, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	start := time.Now()
+	var total *int64
+	var offset int64
+	if command[0].Key == "find" {
+		countCommand, err := findCountCommand(command)
+		if err != nil {
+			return nil, err
+		}
+		var response struct {
+			N int64 `bson:"n"`
+		}
+		if err := c.DB().RunCommand(operation, countCommand).Decode(&response); err != nil {
+			return nil, fmt.Errorf("count MongoDB results: %w", err)
+		}
+		total = &response.N
+		command, offset, err = findPageCommand(command, response.N, size, input.Page)
+		if err != nil {
+			return nil, err
+		}
+	} else if input.Type == entities.QueryExecutionNavigate {
+		return nil, fmt.Errorf("direct page navigation is supported for MongoDB find commands")
+	}
 	switch command[0].Key {
 	case "find", "aggregate", "listCollections", "listIndexes":
 		if command[0].Key != "find" {
@@ -85,7 +112,7 @@ func (p *Pager) Open(ctx context.Context, conn manager.Connection, query string,
 			return nil, err
 		}
 		id := hex.EncodeToString(key[:])
-		stream := &documentCursor{connection: conn.ID(), size: size}
+		stream := &documentCursor{connection: conn.ID(), size: size, read: offset, page: int(offset / int64(size)), totalRows: total}
 		stream.mu.Lock()
 		p.mu.Lock()
 		if len(p.cursors) >= 16 {
@@ -220,7 +247,7 @@ func documentRow(document bson.Raw) ([]any, error) {
 	return []any{string(encoded)}, nil
 }
 func (c *documentCursor) fetch(ctx context.Context, id string, start time.Time) (*entities.QueryResult, error) {
-	result := &entities.QueryResult{IsQuery: true, PageSize: c.size, StartRow: c.read + 1}
+	result := &entities.QueryResult{IsQuery: true, PageSize: c.size, StartRow: c.read + 1, TotalRows: c.totalRows, CanNavigate: c.totalRows != nil}
 	documents := make([]bson.Raw, 0, c.size)
 	if c.pending != nil {
 		documents = append(documents, c.pending)

@@ -13,6 +13,7 @@ export interface QueryResult {
   PageSize: number;
   IsQuery: boolean;
   CanNavigate: boolean;
+  CanSort?: boolean;
   Duration: number;
   Columns: QueryColumn[];
   Rows: Array<Array<unknown>>;
