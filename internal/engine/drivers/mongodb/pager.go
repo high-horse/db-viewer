@@ -262,6 +262,13 @@ func (c *documentCursor) fetch(ctx context.Context, id string, start time.Time) 
 	}
 	var err error
 	result.Columns, result.Rows, err = documentTable(documents)
+	for _, document := range documents {
+		encoded, encodeErr := bson.MarshalExtJSON(document, true, false)
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		result.Documents = append(result.Documents, string(encoded))
+	}
 	if err != nil {
 		return nil, err
 	}

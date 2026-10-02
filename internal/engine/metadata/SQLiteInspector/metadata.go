@@ -89,7 +89,7 @@ func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connecti
 		return nil, fmt.Errorf("connection is not a SQL connection")
 	}
 
-	query := fmt.Sprintf("PRAGMA table_info(%s)", table.Name)
+	query := fmt.Sprintf("PRAGMA %s.table_xinfo(%s)", quoteIdentifier(table.Schema), quoteIdentifier(table.Name))
 	rows, err := sqlConn.DB().QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,7 @@ func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connecti
 			col      entities.InspectColumnInfo
 			notNull  int
 			pk       int
+			hidden   int
 			defaultV sql.NullString
 		)
 
@@ -114,19 +115,21 @@ func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connecti
 			&notNull,
 			&defaultV,
 			&pk,
+			&hidden,
 		)
 		if err != nil {
 			return nil, err
 		}
 
 		col.Nullable = notNull == 0
-		col.PrimaryKey = pk == 1
+		col.PrimaryKey = pk > 0
+		col.Generated = hidden != 0
 		if defaultV.Valid {
 			col.DefaultValue = defaultV.String
 		}
 		// SQLite has no explicit auto_increment flag in PRAGMA.
 		// AUTOINCREMENT only applies to INTEGER PRIMARY KEY AUTOINCREMENT.
-		col.AutoIncrement = col.PrimaryKey && strings.EqualFold(col.DatabaseType, "INTEGER")
+		col.AutoIncrement = col.PrimaryKey && pk == 1 && strings.EqualFold(col.DatabaseType, "INTEGER") && !strings.Contains(strings.ToUpper(table.Comment), "WITHOUT ROWID")
 
 		columns = append(columns, col)
 	}
@@ -134,9 +137,26 @@ func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connecti
 		return nil, err
 	}
 
+	keys := 0
+	for _, col := range columns {
+		if col.PrimaryKey {
+			keys++
+		}
+	}
+	if keys > 1 {
+		for index := range columns {
+			columns[index].AutoIncrement = false
+		}
+	}
 	return columns, nil
 }
 
 func (p *SQLiteInspector) GetTableDDL(ctx context.Context, table string) (string, error) {
 	return "", nil
+}
+func quoteIdentifier(name string) string {
+	if name == "" {
+		name = "main"
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }

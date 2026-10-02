@@ -1,3 +1,5 @@
+import { Dialog } from "quasar";
+import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -91,7 +93,14 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTabId.value = id;
   }
 
-  function closeTab(id: string) {
+  function closeTab(id: string, discard = false) {
+    const edits = useTableEditsStore();
+    if (edits.isSaving(id)) return;
+    if (!discard && edits.hasPending(id)) {
+      Dialog.create({ title: "Unsaved changes", message: "Discard the staged row changes and close this tab?", cancel: true, ok: "Discard" }).onOk(() => closeTab(id, true));
+      return;
+    }
+    edits.clear(id);
     const index = tabs.value.findIndex((tab) => tab.id === id);
 
     if (index === -1) {
@@ -171,47 +180,60 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       Duration: response.duration,
       Columns: (response.columns ?? []).map(column => ({ Name: column.name, Type: column.databaseType, Nullable: column.nullable, DefaultValue: column.defaultValue })),
       Rows: (response.rows ?? []).map(row => row ?? []),
+      Documents: response.documents ?? undefined,
       Cursor: response.cursor, HasMore: response.hasMore,
       StartRow: response.startRow, PageSize: response.pageSize, IsQuery: response.isQuery, CanNavigate: response.canNavigate,
       CanSort: response.canNavigate && useConnectionStore().activeConnection?.driver !== "mongodb",
     };
   }
 
-  async function execute(id: string, sql: string) {
+  async function execute(id: string, sql: string, afterSave = false) {
+    if (!afterSave && (useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id))) return;
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || !sql.trim()) return;
     const previousCursor = tab.cursor ?? "";
+    const refreshPage = afterSave && tab.result?.CanNavigate
+      ? Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1 : 1;
+    const pageSize = afterSave ? tab.result?.PageSize ?? 100 : 100;
+    const refreshSortColumn = afterSave ? tab.sortColumn ?? 0 : 0;
+    const refreshSortDirection = afterSave ? tab.sortDirection : undefined;
     tab.loading = true;
     tab.error = null;
     tab.pageError = undefined;
     tab.totalRows = undefined;
     tab.fetchingLast = false;
-    tab.sortColumn = 0;
-    tab.sortDirection = undefined;
+    tab.sortColumn = refreshSortColumn;
+    tab.sortDirection = refreshSortDirection;
     tab.streamNextPage = 2;
-    tab.result = null;
+    if (!afterSave) tab.result = null;
     tab.pages = [];
     tab.pageIndex = 0;
     tab.cursor = "";
     tab.executedSql = sql;
     try {
-      const response = await DbService.ExecuteQuery({ query: sql, cursor: previousCursor, type: QueryExecutionType.QueryExecutionExecute, pageSize: 100, page: 1 });
+      const response = await DbService.ExecuteQuery({ query: sql, cursor: previousCursor,
+        type: afterSave && tab.result?.CanNavigate ? QueryExecutionType.QueryExecutionNavigate : QueryExecutionType.QueryExecutionExecute,
+        pageSize, page: refreshPage, sortColumn: refreshSortColumn, sortDirection: refreshSortDirection ?? "",
+      });
       if (!response) throw new Error("Query returned no response");
       if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
       const result = mapResult(response);
       tab.pages = [result];
       tab.cursor = result.Cursor;
+      tab.streamNextPage = Math.floor((result.StartRow - 1) / result.PageSize) + 2;
       if (response.totalRows != null) tab.totalRows = response.totalRows;
       else if (!result.HasMore) tab.totalRows = result.StartRow - 1 + result.Rows.length;
       setResult(id, result);
     } catch (error) {
-      setError(id, error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      if (afterSave && tab.result) tab.pageError = message;
+      else setError(id, message);
     } finally { tab.loading = false; }
   }
 
   async function navigate(id: string, direction: "first" | "previous" | "next" | "last") {
     const tab = tabs.value.find(tab => tab.id === id);
-    if (!tab || tab.loading || !tab.pages?.length) return;
+    if (!tab || tab.loading || !tab.pages?.length || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
     if (tab.result?.CanNavigate) {
       const page = Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1;
       const lastPage = Math.max(1, Math.ceil((tab.totalRows ?? 0) / tab.result.PageSize));
@@ -306,7 +328,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
 
   async function sortResult(id: string, column: number, direction?: "asc" | "desc") {
     const tab = tabs.value.find(tab => tab.id === id);
-    if (!tab?.result?.CanNavigate || tab.loading) return;
+    if (!tab?.result?.CanNavigate || tab.loading || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
     await fetchReadPage(tab, 1, { column, direction });
   }
 
@@ -317,6 +339,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   }
 
   function clearResults() {
+    useTableEditsStore().clearAll();
     for (const tab of tabs.value) releaseCursor(tab.cursor);
     tabs.value = [];
     activeTabId.value = null;

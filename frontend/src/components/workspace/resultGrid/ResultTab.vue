@@ -7,7 +7,7 @@
                 <input v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
                 <q-icon v-if="filterError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ filterError }}</q-tooltip></q-icon>
             </div>
-            <button type="submit" class="filter-action" :disabled="loading" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></button>
+            <button type="submit" class="filter-action" :disabled="loading || editState?.saving" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></button>
             <button type="button" class="filter-action" :disabled="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></button>
             <button type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
                 <q-icon name="help_outline" size="15px" />
@@ -23,8 +23,10 @@
                     </div>
                 </q-menu>
             </button>
-            <span class="filter-count">{{ filteredRows.length }}/{{ result.Rows.length }} <span class="filter-scope">on this page</span></span>
+            <span class="filter-count">{{ filteredRows.length }}/{{ workingRows.length }} <span class="filter-scope">on this page</span></span>
         </form>
+
+        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :loading="loading" />
 
         <!-- =========================================================
              TABLE
@@ -43,7 +45,7 @@
             }"
             :virtual-scroll-item-size="28"
             class="data-explorer-grid bg-transparent"
-            :class="{ 'has-filter-toolbar': result.IsQuery }"
+            :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
             table-class="table-fixed"
             :style="{ '--result-table-width': `${tableWidth}px`, '--row-number-width': `${snColumnWidth}px` }"
             hide-bottom
@@ -232,6 +234,8 @@
                 <q-tr
                     :props="props"
                     class="bg-[#100e0c] even:bg-[#13110f] hover:!bg-[#231f1a]"
+                    :class="{ 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
+                    @click="selectedRowKey = props.row._editKey || ''"
                 >
                     <q-td
                         v-for="col in props.cols"
@@ -243,15 +247,13 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
-                        @dblclick="inspectDocument(props.row[col.field], col.Type)"
+                        @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
                             <span class="row-number">
                                 {{
-                                    rowOffset +
-                                    props.rowIndex +
-                                    1
+                                    props.row._rowNumber
                                 }}
                             </span>
                         </template>
@@ -291,7 +293,7 @@
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
-                <button type="button" class="pagination-button" :disabled="loading"
+                <button type="button" class="pagination-button" :disabled="loading || navigationBlocked"
                     title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
                 </button>
@@ -302,7 +304,7 @@
                 </span>
             </div>
             <div v-if="result.IsQuery" class="flex items-center gap-1">
-                <button type="button" class="pagination-button" :disabled="loading || !canFirst"
+                <button type="button" class="pagination-button" :disabled="loading || navigationBlocked || !canFirst"
                     title="Go to first page" aria-label="Go to first page" @click="emit('first')">
                     <q-icon name="first_page" size="16px" />
                 </button>
@@ -310,7 +312,7 @@
                 <button
                     type="button"
                     class="pagination-button"
-                    :disabled="loading || !canPrevious"
+                    :disabled="loading || navigationBlocked || !canPrevious"
                     :title="result.CanNavigate ? 'Previous page' : 'Previous cached page'"
                     @click="emit('previous')"
                 >
@@ -328,7 +330,7 @@
                 <button
                     type="button"
                     class="pagination-button"
-                    :disabled="loading || !canNext"
+                    :disabled="loading || navigationBlocked || !canNext"
                     title="Next page"
                     @click="emit('next')"
                 >
@@ -336,7 +338,7 @@
                 </button>
 
                 <button type="button" class="pagination-button"
-                    :disabled="loading || !canLast"
+                    :disabled="loading || navigationBlocked || !canLast"
                     :title="result.CanNavigate ? 'Go directly to last page' : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </button>
@@ -361,6 +363,8 @@ import {
 
 import type { QTableColumn } from "quasar";
 
+import TableDataEditor from "./TableDataEditor.vue";
+import { useTableEditsStore } from "@/stores/tableEditsStore";
 import type { QueryResult } from "@/types/queryTab";
 import { compileResultFilter } from "@/utils/resultFilter";
 import { sortResultRows } from "@/utils/resultSort";
@@ -374,12 +378,19 @@ function inspectDocument(value: unknown, type?: string) {
     documentDialog.value = true;
 }
 
+const tableEdits = useTableEditsStore();
+const editState = computed(() => props.tableTabId ? tableEdits.states[props.tableTabId] : undefined);
+const navigationBlocked = computed(() => !!editState.value?.drafts.length || !!editState.value?.saving);
+const selectedRowKey = ref("");
+const rowEditor = ref<InstanceType<typeof TableDataEditor> | null>(null);
+
 const MIN_COLUMN_WIDTH = 60;
 const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * 8 + 24));
 const HEADER_EXTRA_WIDTH = 24;
 
 const props = defineProps<{
     result: QueryResult;
+    tableTabId?: string;
     loading?: boolean;
     canFirst?: boolean;
     canPrevious?: boolean;
@@ -674,7 +685,7 @@ onBeforeUnmount(() => {
    ========================================================= */
 
 const pageSort = ref<{ column: number; direction?: "asc" | "desc" } | null>(null);
-const effectiveSort = computed(() => appliedFilter.value && pageSort.value
+const effectiveSort = computed(() => (appliedFilter.value || navigationBlocked.value) && pageSort.value
     ? pageSort.value : { column: props.sortColumn ?? 0, direction: props.sortDirection });
 const activeSortColumn = computed(() => effectiveSort.value.column ? `column-${effectiveSort.value.column - 1}` : null);
 const sortDirection = computed(() => effectiveSort.value.direction ?? null);
@@ -682,7 +693,7 @@ const sortDirection = computed(() => effectiveSort.value.direction ?? null);
 const sortColumn = (columnName: string, direction: "asc" | "desc") => {
     if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate) || columnName === "sn") return;
     const column = Number(columnName.slice(7)) + 1;
-    if (appliedFilter.value) {
+    if (appliedFilter.value || navigationBlocked.value) {
         pageSort.value = { column, direction };
         return;
     }
@@ -690,7 +701,7 @@ const sortColumn = (columnName: string, direction: "asc" | "desc") => {
 };
 const clearSort = () => {
     if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
-    if (appliedFilter.value) pageSort.value = { column: 0 };
+    if (appliedFilter.value || navigationBlocked.value) pageSort.value = { column: 0 };
     else emit("sort", 0);
 };
 const toggleSort = (columnName: string) => {
@@ -733,21 +744,40 @@ watch(() => props.result, () => {
         filterError.value = error instanceof Error ? error.message : String(error);
     }
 });
-const filteredRows = computed(() => {
-    const rows = props.result.Rows
-        .map((row, index) => ({ row, index }))
-        .filter(({ row }) => {
-            try { return filterPredicate.value?.(row) ?? true; }
-            catch { return true; }
+const workingRows = computed(() => {
+    const drafts = editState.value?.drafts ?? [];
+    const rows = props.result.Rows.map((original, index) => {
+        const key = props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index);
+        const draft = drafts.find(draft => draft.key === key);
+        const row = props.result.Columns.map((column, col) => {
+            const value = draft && Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : original[col];
+            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
         });
-    return appliedFilter.value && pageSort.value
+        return { row, index, key, status: draft?.operation ?? '', number: String(props.result.StartRow + index) };
+    });
+    for (const draft of drafts.filter(draft => !rows.some(row => row.key === draft.key))) {
+        rows.push({ row: props.result.Columns.map(column => {
+            const value = Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : draft.original?.[column.Name];
+            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
+        }), index: rows.length, key: draft.key, status: draft.operation, number: draft.operation === 'insert' ? 'New' : 'Pending' });
+    }
+    return rows;
+});
+const filteredRows = computed(() => {
+    const rows = workingRows.value.filter(({ row, status }) => {
+        // Pending changes remain visible until saved or canceled.
+        if (status) return true;
+        try { return filterPredicate.value?.(row) ?? true; }
+        catch { return true; }
+    });
+    return (appliedFilter.value || navigationBlocked.value) && pageSort.value
         ? sortResultRows(rows, pageSort.value.column, pageSort.value.direction)
         : rows;
 });
 
-// Internal column keys preserve duplicate labels and real columns named id/sn.
-const mappedRows = computed(() => filteredRows.value.map(({ row, index }) => {
-    const mapped: Record<string, unknown> = { id: props.result.StartRow + index };
+// Stable row identities preserve selection while values are staged or sorted.
+const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, number }) => {
+    const mapped: Record<string, unknown> = { id: key, _editKey: key, _status: status, _rowNumber: number };
     row.forEach((value, column) => { mapped[`column-${column}`] = value; });
     return mapped;
 }));
@@ -949,6 +979,12 @@ const mappedColumns =
     min-width: 0;
     min-height: 0;
 }
+
+.data-explorer-grid.has-edit-toolbar { top: 70px !important; }
+.selected-edit-row :deep(td) { box-shadow: inset 0 1px #70572d, inset 0 -1px #70572d; }
+.pending-insert :deep(td) { background: #12281f !important; }
+.pending-update :deep(td) { background: #2b2415 !important; }
+.pending-delete :deep(td) { background: #321c1c !important; text-decoration: line-through; opacity: .65; }
 
 .data-explorer-grid.has-filter-toolbar {
     top: 36px;

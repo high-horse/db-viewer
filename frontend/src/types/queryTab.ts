@@ -17,6 +17,7 @@ export interface QueryResult {
   Duration: number;
   Columns: QueryColumn[];
   Rows: Array<Array<unknown>>;
+  Documents?: string[];
 }
 
 export type QueryTabType = "query" | "result"

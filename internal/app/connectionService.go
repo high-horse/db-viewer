@@ -2,6 +2,7 @@ package app
 
 import (
 	"db-viewer/internal/db"
+	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/types"
 )
 
@@ -22,3 +23,7 @@ func (s *DatabaseService) GetConnections() ([]types.Connection, error) {
 // func (s *DatabaseService) DeleteConnection(id int) error {
 // 	return db.DeleteConnection(id)
 // }
+
+func (s *DatabaseService) UpdateConnection(config entities.ConnectionConfig) error {
+	return db.UpdateConnection(config)
+}

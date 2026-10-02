@@ -2,6 +2,10 @@
     <div
         class="w-full max-w-xl bg-[#161310] backdrop-blur-md p-6 rounded-xl border shadow-2xl"
     >
+        <div v-if="editingId" class="mb-4 flex items-center justify-between">
+            <span class="text-sm font-semibold text-white">Edit Connection</span>
+            <q-btn flat dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
+        </div>
         <!-- Header Section (Flex Container) -->
         <!-- <div class="flex items-center gap-3 mb-6">
             <div>
@@ -32,7 +36,7 @@
         <!-- Form (Full Width) -->
         <q-form
             ref="formRef"
-            @submit="connect"
+            @submit="editingId ? saveConnection() : connect()"
             class="flex-1 flex flex-col min-h-0 px-6 pb-6 q-pt-md"
         >
             <div class="flex-1 min-h-0">
@@ -131,6 +135,7 @@
                         </div>
 
                         <q-checkbox
+                            v-if="!editingId"
                             v-model="form.save_connection"
                             label="Save connection"
                             class="w-1/2 q-pt-md"
@@ -158,6 +163,8 @@
 
                     <!-- SQLite fields -->
                     <template v-else>
+                        <q-input v-model="form.connection_name" label="Connection Name" :rules="[required]" outlined dense />
+                        <q-checkbox v-model="form.readonly" label="Readonly" dense />
                         <q-input
                             v-model="form.database"
                             label="Database File"
@@ -179,9 +186,11 @@
                 color="amber"
                 class="w-full text-capitalize q-mt-md text-black"
                 type="submit"
+                :loading="saving"
+                :disable="loadingSavedConnection"
                 rounded
             >
-                Test Connection
+                {{ editingId ? 'Save Changes' : 'Test Connection' }}
             </q-btn>
         </q-form>
 
@@ -335,17 +344,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { DbService } from "@bindings/db-viewer/internal/app";
+import { DbService, DatabaseService } from "@bindings/db-viewer/internal/app";
 import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
 import { useQuasar, Dialog, Notify } from "quasar";
 import { useActiveConnection } from "@/stores/activeConnection";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 const $q = useQuasar();
 const $router = useRouter();
+const route = useRoute();
+const editingId = computed(() => typeof route.query.edit === "string" ? route.query.edit : "");
+const loadingSavedConnection = ref(false);
+const saving = ref(false);
 const store = useConnectionStore();
 const activeConnectionStore = useActiveConnection();
 
@@ -448,6 +461,7 @@ async function connect() {
 
 function parseToConfig() {
     return <ConnectionConfig>{
+        ID: editingId.value || undefined,
         Name: form.value.connection_name,
         Type: form.value.type,
 
@@ -507,6 +521,7 @@ function resetSshForm() {
 watch(
     () => form.value.type,
     (newVal) => {
+        if (loadingSavedConnection.value) return;
         if (newVal === "pgx") {
             form.value.port = 5432;
         } else if (newVal === "mysql") {
@@ -523,6 +538,7 @@ watch(
 watch(
     () => form.value.use_ssh,
     (enabled) => {
+        if (loadingSavedConnection.value) return;
         if (enabled) {
             sshDialog.value = true;
         } else {
@@ -531,7 +547,59 @@ watch(
     },
 );
 
-onMounted(() => {
-    store.getConnections();
+async function loadSavedConnection() {
+    loadingSavedConnection.value = true;
+    try {
+        if (editingId.value) {
+            await store.getConnections();
+            const connection = store.connections.find(item => String(item.id) === editingId.value);
+            if (!connection) throw new Error("Saved connection not found");
+            const ssh = connection.ssh_config;
+            form.value = {
+                type: connection.driver, host: connection.host, port: Number(connection.port.Int64),
+                user: connection.user, password: connection.password, database: connection.dbname,
+                connection_name: connection.name, color: connection.color.Valid ? connection.color.String : "",
+                save_connection: true, readonly: connection.read_only, use_ssh: !!connection.ssh_config_id.Valid,
+            };
+            sshForm.value = {
+                name: ssh.name, host: ssh.host, port: ssh.port || 22, username: ssh.username,
+                auth_method: ssh.auth_method || "password", private_key: ssh.private_key.Valid ? ssh.private_key.String : "",
+                passphrase: ssh.passphrase.Valid ? ssh.passphrase.String : "", password: ssh.password.Valid ? ssh.password.String : "",
+            };
+        } else {
+            form.value = { type: "pgx", host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", save_connection: true, readonly: false, use_ssh: false };
+            resetSshForm();
+        }
+        sshDialog.value = false;
+        await nextTick();
+        formRef.value?.resetValidation();
+    } catch (error: any) {
+        Notify.create({ message: error?.message || "Failed to load connection", color: "negative" });
+        await cancelEdit();
+    } finally { loadingSavedConnection.value = false; }
+}
+async function cancelEdit() {
+    await $router.push({ name: "Welcome", query: {} });
+}
+async function saveConnection() {
+    if (saving.value || !(await formRef.value?.validate())) return;
+    if (form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "password" ? !sshForm.value.password : !sshForm.value.private_key))) {
+        sshDialog.value = true;
+        return;
+    }
+    saving.value = true;
+    try {
+        await DatabaseService.UpdateConnection(parseToConfig());
+        await store.getConnections();
+        Notify.create({ message: "Connection updated", color: "positive" });
+        await cancelEdit();
+    } catch (error: any) {
+        Notify.create({ message: error?.message || "Failed to update connection", color: "negative" });
+    } finally { saving.value = false; }
+}
+watch(editingId, loadSavedConnection);
+onMounted(async () => {
+    if (editingId.value) await loadSavedConnection();
+    else await store.getConnections();
 });
 </script>

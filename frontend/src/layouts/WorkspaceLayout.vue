@@ -3,7 +3,7 @@
         class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-text"
     >
         <!-- select-none -->
-        <WorkspaceHeader @disconnect="handleDisconnect" />
+        <WorkspaceHeader @disconnect="handleDisconnect(false)" />
 
         <div class="grow flex relative min-w-0 min-h-0 overflow-hidden">
             <q-splitter
@@ -130,6 +130,7 @@
                                     class="h-full w-full min-w-0 min-h-0 overflow-hidden"
                                 >
                                     <ResultGrid
+                                        :table-tab-id="queryTabsStore.activeTab.id"
                                         :key="queryTabsStore.activeTab.id"
                                         :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
                                         @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
@@ -206,6 +207,8 @@ import { ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 
+import { Dialog } from "quasar";
+import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { DbService } from "@bindings/db-viewer/internal/app";
 
 
@@ -226,6 +229,7 @@ const $router = useRouter();
 
 const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
+const tableEdits = useTableEditsStore();
 
 const { activeConnection, activeConnectionMetadata } =
     storeToRefs(connectionStore);
@@ -257,6 +261,8 @@ async function handleTableSelect(node: {
     id: string;
     label: string;
     type?: string;
+    schema?: string;
+    database?: string;
 }) {
     if (node.type !== "table" && node.type !== "view" && node.type !== "collection") {
         return;
@@ -265,6 +271,10 @@ async function handleTableSelect(node: {
     const tab = queryTabsStore.createResultTab(node.label);
 
     await executeTableResult(tab.id, node);
+    if (activeConnection.value) {
+        await tableEdits.load(tab.id, { connectionId: await DbService.GetActiveConnection(), name: node.label,
+            schema: node.schema ?? "", database: node.database ?? activeConnection.value.dbname });
+    }
 }
 
 async function executeTableResult(
@@ -273,6 +283,7 @@ async function executeTableResult(
         id: string;
         label: string;
         type?: string;
+        schema?: string;
     },
 ) {
     if (activeConnection.value?.driver === "mongodb") {
@@ -281,7 +292,7 @@ async function executeTableResult(
         await executeQuery(id, command);
         return;
     }
-    const tableName = node.id.split(".")
+    const tableName = [node.schema, node.label].filter((part): part is string => !!part)
         .map(part => quoteIdentifier(part, activeConnection.value?.driver)).join(".");
     const sql = `SELECT * FROM ${tableName};`;
     queryTabsStore.updateSql(id, sql);
@@ -302,7 +313,12 @@ function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
   
 }
 
-async function handleDisconnect() {
+async function handleDisconnect(discard = false) {
+    if (Object.values(tableEdits.states).some(state => state.saving)) return;
+    if (tableEdits.anyPending && !discard) {
+        Dialog.create({ title: "Unsaved changes", message: "Discard staged row changes and disconnect?", cancel: true, ok: "Discard" }).onOk(() => handleDisconnect(true));
+        return;
+    }
     const session = connectionStore.getActiveSession();
 
     if (session) {

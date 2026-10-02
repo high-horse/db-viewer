@@ -15,7 +15,7 @@ function sortableValue(value: unknown): unknown {
 }
 
 // Preserve original row indexes for the grid's row keys and row numbers.
-export function sortResultRows(rows: IndexedResultRow[], column: number, direction?: 'asc' | 'desc'): IndexedResultRow[] {
+export function sortResultRows<T extends IndexedResultRow>(rows: T[], column: number, direction?: 'asc' | 'desc'): T[] {
     if (column < 1 || !direction) return rows;
     const multiplier = direction === 'desc' ? -1 : 1;
     return [...rows].sort((a, b) => {

@@ -23,7 +23,7 @@
                 icon="add"
                 label="New Connection"
                 class="text-xs font-bold text-capitalize"
-                @click="() => (showNewConnectionDialog = true)"
+                @click="$router.push({ name: 'Welcome', query: {} })"
             />
         </header>
 
@@ -81,13 +81,16 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <q-icon
-                                        name="more_vert"
-                                        size="25px"
-                                        class="text-amber-400"
-                                    />
-                                </div>
+                                <q-btn flat round dense icon="more_vert" color="amber" :aria-label="`Actions for ${connection.name}`" @click.stop @dblclick.stop>
+                                    <q-menu class="bg-[#161310] text-gray-300 border border-[#292521]">
+                                        <q-list dense>
+                                            <q-item clickable v-close-popup @click="editConnection(connection.id)">
+                                                <q-item-section avatar><q-icon name="edit" size="16px" /></q-item-section>
+                                                <q-item-section>Edit connection</q-item-section>
+                                            </q-item>
+                                        </q-list>
+                                    </q-menu>
+                                </q-btn>
                             </div>
                         </div>
                     </div>
@@ -121,6 +124,10 @@ const store = useConnectionStore();
 
 const { connections, showNewConnectionDialog, activeConnection } =
     storeToRefs(store);
+
+function editConnection(id: number) {
+    $router.push({ name: "Welcome", query: { edit: String(id) } });
+}
 
 async function selectConnection(connection: any) {
     store.setSelectedSession(connection);
