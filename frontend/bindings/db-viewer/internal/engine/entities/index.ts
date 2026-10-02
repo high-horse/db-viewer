@@ -8,8 +8,14 @@ export {
 export type {
     ColumnInfo,
     ConnectionConfig,
+    InspectColumnInfo,
     InspectTableInfo,
     QueryInput,
     QueryResult,
-    SSHConfig
+    RowChange,
+    SSHConfig,
+    TableChanges,
+    TableEditInfo,
+    TableRef,
+    TableSaveResult
 } from "./models.js";

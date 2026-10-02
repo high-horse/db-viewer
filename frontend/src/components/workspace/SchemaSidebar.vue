@@ -151,6 +151,8 @@ interface SchemaNode {
     icon: string;
     iconColor: string;
     type?: string;
+    schema?: string;
+    database?: string;
     children?: SchemaNode[];
 }
 
@@ -217,6 +219,8 @@ const loading = ref(false);
  
              return {
                  id: `${schema}.${item.name}`,
+                 schema,
+                 database: item.database,
                  label: item.name,
                  icon: item.type === "COLLECTION" ? "data_object" : isView ? "view_list" : "table_chart",
                  iconColor: isView ? "blue-4" : "amber-4",

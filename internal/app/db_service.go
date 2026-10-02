@@ -113,9 +113,10 @@ func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
 			Int64: int64(config.Port),
 			Valid: host == config.Host,
 		},
-		Name:   conn.Name(),
-		DBName: conn.DatabaseName(),
-		Driver: conn.Type(),
+		Name:     conn.Name(),
+		DBName:   conn.DatabaseName(),
+		Driver:   conn.Type(),
+		ReadOnly: config.ReadOnly,
 	}, true
 }
 

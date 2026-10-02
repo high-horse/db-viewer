@@ -31,6 +31,7 @@ type QueryInput struct {
 
 type QueryResult struct {
 	Columns      []ColumnInfo    `json:"columns"`
+	Documents    []string        `json:"documents,omitempty"`
 	Rows         [][]interface{} `json:"rows"`
 	RowsAffected int64           `json:"rowsAffected"`
 	LastInsertId int64           `json:"lastInsertId"`

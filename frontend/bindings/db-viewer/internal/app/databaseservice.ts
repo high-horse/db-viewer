@@ -7,8 +7,15 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as entities$0 from "../engine/entities/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as types$0 from "../types/models.js";
 
 export function GetConnections(): $CancellablePromise<types$0.Connection[] | null> {
     return $Call.ByID(3875144445);
+}
+
+export function UpdateConnection(config: entities$0.ConnectionConfig): $CancellablePromise<void> {
+    return $Call.ByID(761924589, config);
 }

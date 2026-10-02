@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/types"
+	"fmt"
+	"strconv"
 )
-
 
 func GetConnectionList() ([]types.Connection, error) {
 	query := `
 		SELECT
-			c.id, c.name, c.driver, c.host, c.port, c.user, c.password, c.dbname, c.pinned, c.color,
+			c.id, c.name, c.driver, c.host, c.port, c.user, c.password, c.dbname, c.pinned, c.color, c.read_only,
 			s.id, s.name, s.host, s.port, s.username, s.auth_method, s.private_key, s.passphrase, s.password
 		FROM connections c
 		LEFT JOIN ssh_configs s ON s.id = c.ssh_config_id
@@ -30,7 +31,7 @@ func GetConnectionList() ([]types.Connection, error) {
 		var sshUsername sql.NullString
 
 		if err := rows.Scan(
-			&c.Id, &c.Name, &c.Driver, &c.Host, &c.Port, &c.User, &c.Password, &c.DBName, &c.Pinned, &c.Color,
+			&c.Id, &c.Name, &c.Driver, &c.Host, &c.Port, &c.User, &c.Password, &c.DBName, &c.Pinned, &c.Color, &c.ReadOnly,
 			&sshID, &sshName, &sshHost, &sshPort, &sshUsername, &sshAuthMethod,
 			&c.SSHConfig.PrivateKey, &c.SSHConfig.Passphrase, &c.SSHConfig.Password,
 		); err != nil {
@@ -49,10 +50,8 @@ func GetConnectionList() ([]types.Connection, error) {
 
 		connections = append(connections, c)
 	}
-	return connections, nil
+	return connections, rows.Err()
 }
-
-
 
 func StoreConnection(conn entities.ConnectionConfig) (int64, error) {
 	tx, err := Conn.Begin()
@@ -88,8 +87,8 @@ func StoreConnection(conn entities.ConnectionConfig) (int64, error) {
 	}
 
 	res, err := tx.Exec(
-		`INSERT INTO connections (name, driver, host, port, user, password, dbname, pinned, color, ssh_config_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO connections (name, driver, host, port, user, password, dbname, pinned, color, ssh_config_id, read_only)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		conn.Name,
 		conn.Type,
 		conn.Host,
@@ -100,6 +99,7 @@ func StoreConnection(conn entities.ConnectionConfig) (int64, error) {
 		false,
 		nullable(conn.Color),
 		sshConfigID,
+		conn.ReadOnly,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -124,4 +124,44 @@ func nullable(s string) any {
 		return nil
 	}
 	return s
+}
+
+// UpdateConnection keeps the saved connection identity and query history intact.
+func UpdateConnection(config entities.ConnectionConfig) error {
+	id, err := strconv.ParseInt(config.ID, 10, 64)
+	if err != nil || id < 1 {
+		return fmt.Errorf("invalid saved connection ID")
+	}
+	tx, err := Conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var previousSSH sql.NullInt64
+	if err := tx.QueryRow("SELECT ssh_config_id FROM connections WHERE id = ?", id).Scan(&previousSSH); err != nil {
+		return fmt.Errorf("saved connection not found: %w", err)
+	}
+	var sshID any
+	if config.SSHConfig != nil {
+		// A separate record avoids changing another connection sharing this SSH config.
+		ssh := config.SSHConfig
+		result, err := tx.Exec(`INSERT INTO ssh_configs (name, host, port, username, auth_method, private_key, passphrase, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, ssh.Name, ssh.Host, ssh.Port, ssh.Username, ssh.AuthMethod, nullable(ssh.PrivateKey), nullable(ssh.Passphrase), nullable(ssh.Password))
+		if err != nil {
+			return err
+		}
+		sshID, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(`UPDATE connections SET name = ?, driver = ?, host = ?, port = ?, user = ?, password = ?, dbname = ?, color = ?, ssh_config_id = ?, read_only = ? WHERE id = ?`, config.Name, config.Type, config.Host, config.Port, config.User, config.Password, config.Database, nullable(config.Color), sshID, config.ReadOnly, id)
+	if err != nil {
+		return err
+	}
+	if previousSSH.Valid {
+		if _, err := tx.Exec(`DELETE FROM ssh_configs WHERE id = ? AND NOT EXISTS (SELECT 1 FROM connections WHERE ssh_config_id = ?)`, previousSSH.Int64, previousSSH.Int64); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

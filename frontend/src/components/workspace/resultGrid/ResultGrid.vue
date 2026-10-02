@@ -99,6 +99,7 @@
                 <ResultTab
                     v-if="activeSubTab === 'data'"
                     :result="result"
+                    :table-tab-id="tableTabId"
                     :loading="loading"
                     :can-first="canFirst"
                     :can-previous="canPrevious"
@@ -151,6 +152,7 @@ import IndexSchema from "./Schema/Index.vue";
 
 const props = defineProps<{
     result: QueryResult | null;
+    tableTabId?: string;
     loading?: boolean;
     canFirst?: boolean;
     canPrevious?: boolean;

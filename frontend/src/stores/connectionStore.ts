@@ -88,7 +88,7 @@ export const useConnectionStore = defineStore("connection", () => {
           }
         : null,
       InMemory: false,
-      ReadOnly: false,
+      ReadOnly: connection.read_only,
       Color: connection.color.Valid ? connection.color.String : "",
     };
   }
