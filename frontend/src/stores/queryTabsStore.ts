@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { useConnectionStore } from "@/stores/connectionStore";
 import type { QueryTab, QueryResult } from "@/types/queryTab";
 import { DbService } from "@bindings/db-viewer/internal/app";
 import { QueryExecutionType } from "@bindings/db-viewer/internal/engine/entities";
@@ -39,7 +40,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
 
     const tab: QueryTab = {
       id,
-      title: `console_${tabs.value.length + 1}.sql`,
+      title: `console_${tabs.value.length + 1}.${useConnectionStore().activeConnection?.driver === "mongodb" ? "json" : "sql"}`,
       type: "query",
       sql: "",
       result: null,

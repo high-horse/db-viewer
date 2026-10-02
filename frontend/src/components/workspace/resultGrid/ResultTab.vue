@@ -216,6 +216,7 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
+                        @dblclick="inspectDocument(props.row[col.field], col.Type)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -241,6 +242,18 @@
                 </q-tr>
             </template>
         </q-table>
+
+        <q-dialog v-model="documentDialog">
+            <q-card class="bg-[#161310] text-gray-300" style="width: 800px; max-width: 90vw">
+                <q-card-section class="flex items-center justify-between">
+                    <span>MongoDB document</span>
+                    <q-btn flat round dense icon="close" v-close-popup />
+                </q-card-section>
+                <q-card-section style="max-height: 70vh; overflow: auto">
+                    <pre class="text-xs font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
+                </q-card-section>
+            </q-card>
+        </q-dialog>
 
         <!-- =========================================================
              FIXED BOTTOM TOOLBAR
@@ -318,6 +331,15 @@ import {
 import type { QTableColumn } from "quasar";
 
 import type { QueryResult } from "@/types/queryTab";
+
+const documentDialog = ref(false);
+const selectedDocument = ref("");
+function inspectDocument(value: unknown, type?: string) {
+    if (type !== "Extended JSON" || typeof value !== "string") return;
+    try { selectedDocument.value = JSON.stringify(JSON.parse(value), null, 2); }
+    catch { selectedDocument.value = value; }
+    documentDialog.value = true;
+}
 
 const MIN_COLUMN_WIDTH = 60;
 const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * 8 + 24));

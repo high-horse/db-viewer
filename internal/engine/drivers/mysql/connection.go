@@ -5,95 +5,79 @@ import (
 	"database/sql"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/transports"
+	"errors"
 	"fmt"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
-
-type Connection struct{
+type Connection struct {
 	config entities.ConnectionConfig
 
 	transport transports.Transport
 
-	db *sql.DB
+	db        *sql.DB
 	connected bool
 }
 
 func New(config entities.ConnectionConfig, transport transports.Transport) *Connection {
 	return &Connection{
-		config: config,
+		config:    config,
 		transport: transport,
 	}
 }
 
-func(c *Connection) ID() string {
+func (c *Connection) ID() string {
 	return c.config.ID
 }
 
-func(c *Connection) Name() string {
+func (c *Connection) Name() string {
 	return c.config.Name
 }
 
-func(c *Connection) DatabaseName() string {
+func (c *Connection) DatabaseName() string {
 	return c.config.Database
 }
 
-func(c *Connection) Type() string {
+func (c *Connection) Type() string {
 	return string(entities.DialectMySQL)
 }
 
-func(c *Connection) DB() *sql.DB {
-	return  c.db
+func (c *Connection) DB() *sql.DB {
+	return c.db
 }
-
-// func (c *Connection) dsn() string {
-// 	return fmt.Sprintf(
-// 		"%s:%s@tcp(%s)/%s?parseTime=true",
-// 		c.config.User,
-// 		c.config.Password,
-// 		c.transport.Address(),
-// 		c.config.Database,
-// 	)
-// }
 
 func (c *Connection) dsn() string {
-	host := c.config.Host
-
-	if host == "" {
-		host = "127.0.0.1"
+	cfg := mysqldriver.NewConfig()
+	cfg.User, cfg.Passwd, cfg.DBName = c.config.User, c.config.Password, c.config.Database
+	cfg.Net, cfg.Addr = "tcp", c.transport.Address()
+	cfg.ParseTime = true
+	cfg.Timeout = 15 * time.Second
+	if c.config.SSL {
+		cfg.TLSConfig = "true"
 	}
-
-	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true",
-		c.config.User,
-		c.config.Password,
-		host,
-		c.config.Port,
-		c.config.Database,
-	)
+	return cfg.FormatDSN()
 }
 
-func(c *Connection) Connect(ctx context.Context) error {
-	fmt.Println("transporting ...")
+func (c *Connection) Connect(ctx context.Context) error {
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
 	}
 
-	fmt.Println("transporting success\nOpening database")
-	fmt.Println("dsn", c.dsn())
 	db, err := sql.Open(
 		"mysql",
 		c.dsn(),
 	)
 
 	if err != nil {
-		fmt.Println("Failed to open with dsn", c.dsn())
+		_ = c.transport.Close()
 		return err
 	}
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
+		_ = c.transport.Close()
 		return err
 	}
 
@@ -103,17 +87,14 @@ func(c *Connection) Connect(ctx context.Context) error {
 	return nil
 }
 
-func(c *Connection) Disconnect() error {
-	if !c.connected {
-		return nil
+func (c *Connection) Disconnect() error {
+	var err error
+	if c.db != nil {
+		err = c.db.Close()
+		c.db = nil
 	}
-	if c.db == nil {
-		return nil
-	}
-
-	err := c.db.Close()
 	c.connected = false
-	return err
+	return errors.Join(err, c.transport.Close())
 }
 
 func (c *Connection) Ping(ctx context.Context) error {
@@ -121,7 +102,7 @@ func (c *Connection) Ping(ctx context.Context) error {
 	if !c.connected {
 		return fmt.Errorf("not connected")
 	}
-	
+
 	if c.db == nil {
 		return fmt.Errorf("mysql connection not initialized")
 	}
