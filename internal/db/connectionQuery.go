@@ -126,6 +126,30 @@ func nullable(s string) any {
 	return s
 }
 
+func DeleteConnection(id int) error {
+	if id < 1 {
+		return fmt.Errorf("invalid saved connection ID")
+	}
+	tx, err := Conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var sshID sql.NullInt64
+	if err := tx.QueryRow("SELECT ssh_config_id FROM connections WHERE id = ?", id).Scan(&sshID); err != nil {
+		return fmt.Errorf("saved connection not found: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM connections WHERE id = ?", id); err != nil {
+		return err
+	}
+	if sshID.Valid {
+		if _, err := tx.Exec(`DELETE FROM ssh_configs WHERE id = ? AND NOT EXISTS (SELECT 1 FROM connections WHERE ssh_config_id = ?)`, sshID.Int64, sshID.Int64); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // UpdateConnection keeps the saved connection identity and query history intact.
 func UpdateConnection(config entities.ConnectionConfig) error {
 	id, err := strconv.ParseInt(config.ID, 10, 64)
