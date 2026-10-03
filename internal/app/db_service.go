@@ -245,6 +245,8 @@ func (s *DbService) GetDDL(ctx context.Context, table string) (string, error) {
 }
 
 func (s *DbService) PingConnection(ctx context.Context, connID string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	conn, ok := s.manager.Get(connID)
 	if !ok {
 		return false, fmt.Errorf("connection not found")
