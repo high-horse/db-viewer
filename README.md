@@ -91,3 +91,38 @@ Double-click a collection to browse its documents. The query console accepts one
 Supported commands include `find`, `aggregate`, `count`, `distinct`, `listCollections`, `listIndexes`, `collStats`, `dbStats`, `ping`, `hello`, `insert`, `update`, `delete`, `findAndModify`, `create`, `createIndexes`, `drop`, and `dropIndexes`. Readonly connections reject writes, including aggregation pipelines using `$out` or `$merge`. Change streams and tailable cursors are not supported.
 
 Documents are displayed as canonical Extended JSON so BSON types and large integers keep their precision. Double-click a document cell to inspect its formatted contents. Cursor results use sequential pages with up to 500 documents per page (100 by default), retain at most 16 open streams, and expire after 10 minutes. Sort using the MongoDB command's `sort` field or an aggregation `$sort` stage. Closing results, disconnecting, and application shutdown release MongoDB cursors.
+
+## Download and run on Linux
+
+Open this repository's **Releases** page and download the Linux x86_64 AppImage and `SHA256SUMS` from the same release. The AppImage is for Intel/AMD 64-bit machines; ARM64 packages are not currently produced.
+
+For example, for version `v0.1.0`, put both files in the same directory and run:
+
+```bash
+sha256sum --check SHA256SUMS
+chmod +x db-viewer-v0.1.0-linux-x86_64.AppImage
+./db-viewer-v0.1.0-linux-x86_64.AppImage
+```
+
+If your system cannot mount AppImages through FUSE, run it with extraction instead:
+
+```bash
+./db-viewer-v0.1.0-linux-x86_64.AppImage --appimage-extract-and-run
+```
+
+The release build uses Ubuntu 22.04 and GTK3/WebKit2GTK 4.1, with runtime libraries bundled by Wails' AppImage generator. It targets modern glibc-based Linux distributions; compatibility with older distributions, Alpine/musl, and NixOS is not guaranteed. App settings remain in the user's configuration directory (`~/.config/db-viewer/app.db` on Linux by default).
+
+## Publish a release
+
+See [release-document.md](release-document.md) for the full release procedure, verification steps, and troubleshooting.
+
+The [release workflow](.github/workflows/release.yml) runs when you push a version tag. Commit and push the workflow and application changes first, then tag the commit you want to release:
+
+```bash
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+The workflow tests the backend, builds the frontend and Linux executable, packages and verifies the AppImage, and publishes it with `SHA256SUMS` and generated release notes. It uses GitHub's automatic token; no personal access token is required. Tags such as `v0.1.0-beta.1` produce prereleases. Ordinary branch pushes do not publish a release.
+
+To retry a failed run, use **Actions → Release Linux AppImage → Re-run jobs**, or manually run the workflow with an existing version tag selected. An existing draft is completed on retry; a published release is left unchanged. Use a new version tag for subsequent releases. The first GitHub-hosted run is needed to verify the full Ubuntu packaging environment.
