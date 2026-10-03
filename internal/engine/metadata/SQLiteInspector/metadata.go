@@ -151,9 +151,6 @@ func (s *SQLiteInspector) ListColumns(ctx context.Context, conn manager.Connecti
 	return columns, nil
 }
 
-func (p *SQLiteInspector) GetTableDDL(ctx context.Context, table string) (string, error) {
-	return "", nil
-}
 func quoteIdentifier(name string) string {
 	if name == "" {
 		name = "main"

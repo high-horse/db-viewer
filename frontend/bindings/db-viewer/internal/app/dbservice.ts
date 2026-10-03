@@ -39,7 +39,7 @@ export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connec
     return $Call.ByID(1493165516);
 }
 
-export function GetDDL(table: string): $CancellablePromise<string> {
+export function GetDDL(table: entities$0.TableRef): $CancellablePromise<string> {
     return $Call.ByID(2116919059, table);
 }
 

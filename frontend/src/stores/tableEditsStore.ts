@@ -12,6 +12,7 @@ export interface DraftRow {
     original?: Record<string, unknown>;
 }
 export interface EditState {
+    table: TableRef;
     info: TableEditInfo | null;
     drafts: DraftRow[];
     loading: boolean;
@@ -24,7 +25,7 @@ export const useTableEditsStore = defineStore('tableEdits', () => {
     const isSaving = (id?: string) => !!id && !!states.value[id]?.saving;
     const anyPending = computed(() => Object.values(states.value).some(state => state.drafts.length || state.saving));
     async function load(id: string, table: TableRef) {
-        states.value[id] = { info: null, drafts: [], loading: true, saving: false, error: '' };
+        states.value[id] = { table, info: null, drafts: [], loading: true, saving: false, error: '' };
         try {
             const info = await DbService.DescribeTableEdit(table);
             if (states.value[id]) states.value[id].info = info;

@@ -229,10 +229,10 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 	return &response, nil
 }
 
-func (s *DbService) GetDDL(ctx context.Context, table string) (string, error) {
-	conn, ok := s.manager.Active()
+func (s *DbService) GetDDL(ctx context.Context, table entities.TableRef) (string, error) {
+	conn, ok := s.manager.Get(table.ConnectionID)
 	if !ok {
-		return "", fmt.Errorf("active connection not found")
+		return "", fmt.Errorf("table connection not found")
 	}
 
 	driver, err := s.factory.Driver(conn.Type())
@@ -240,7 +240,7 @@ func (s *DbService) GetDDL(ctx context.Context, table string) (string, error) {
 		return "", err
 	}
 
-	return driver.Inspector().GetTableDDL(ctx, table)
+	return driver.Inspector().GetTableDDL(ctx, conn, table)
 
 }
 

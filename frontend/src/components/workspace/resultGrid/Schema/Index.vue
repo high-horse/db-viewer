@@ -28,6 +28,7 @@
       <component
         :is="currentComponent"
         :result="props.result"
+        :table-tab-id="props.tableTabId"
         class="h-full"
       />
     </div>
@@ -45,6 +46,7 @@ import SchemaTable from "./SchemaTable.vue"
 
 const props = defineProps<{
   result: QueryResult
+  tableTabId?: string
 }>()
 
 const selectedTab = ref("table")
