@@ -120,6 +120,7 @@
                 <IndexSchema
                     v-else-if="activeSubTab === 'schema'"
                     :result="result"
+                    :table-tab-id="tableTabId"
                 />
             </div>
 

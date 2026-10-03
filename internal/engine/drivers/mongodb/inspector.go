@@ -60,6 +60,6 @@ func (inspector) ListTables(ctx context.Context, conn manager.Connection) ([]ent
 func (inspector) ListColumns(context.Context, manager.Connection, entities.InspectTableInfo) ([]entities.InspectColumnInfo, error) {
 	return []entities.InspectColumnInfo{{Name: "document", DatabaseType: "Extended JSON"}}, nil
 }
-func (inspector) GetTableDDL(context.Context, string) (string, error) {
+func (inspector) GetTableDDL(context.Context, manager.Connection, entities.TableRef) (string, error) {
 	return "", fmt.Errorf("MongoDB collections do not have SQL DDL; use listCollections or listIndexes JSON commands")
 }

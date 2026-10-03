@@ -206,7 +206,3 @@ func (i *MySQLInspector) ListColumns(
 
 	return columns, nil
 }
-
-func (i *MySQLInspector) GetTableDDL(ctx context.Context, table string) (string, error) {
-	return "", nil
-}
