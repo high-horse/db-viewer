@@ -127,3 +127,51 @@ func TestConnectionMigrationExistingDatabase(t *testing.T) {
 		t.Fatalf("migration lost saved settings: %s %v %v", name, readOnly, err)
 	}
 }
+
+func TestDeleteConnectionSharedSSHAndRollback(t *testing.T) {
+	testConnectionsDB(t)
+	id, err := StoreConnection(entities.ConnectionConfig{Name: "one", Type: "mysql", SSHConfig: &entities.SSHConfig{Name: "shared", Host: "ssh", Username: "user", Port: 22}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Conn.Exec(`INSERT INTO connections (name, ssh_config_id) SELECT 'two', ssh_config_id FROM connections WHERE id = ?`, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteConnection(int(id)); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := Conn.QueryRow(`SELECT count(*) FROM ssh_configs`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("shared SSH removed: %d %v", count, err)
+	}
+	if _, err := Conn.Exec(`CREATE TRIGGER reject_delete BEFORE DELETE ON ssh_configs BEGIN SELECT RAISE(ABORT, 'test rejection'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteConnection(int(secondID)); err == nil {
+		t.Fatal("expected failed cleanup")
+	}
+	if err := Conn.QueryRow(`SELECT count(*) FROM connections WHERE id = ?`, secondID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("failed deletion did not roll back: %d %v", count, err)
+	}
+	if _, err := Conn.Exec(`DROP TRIGGER reject_delete`); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteConnection(int(secondID)); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"connections", "ssh_configs"} {
+		if err := Conn.QueryRow(`SELECT count(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("%s not cleaned up: %d %v", table, count, err)
+		}
+	}
+	for _, missingID := range []int{0, -1, int(id)} {
+		if err := DeleteConnection(missingID); err == nil {
+			t.Fatalf("deleted invalid or missing connection %d", missingID)
+		}
+	}
+}

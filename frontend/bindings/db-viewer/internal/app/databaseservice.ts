@@ -12,6 +12,10 @@ import * as entities$0 from "../engine/entities/models.js";
 // @ts-ignore: Unused imports
 import * as types$0 from "../types/models.js";
 
+export function DeleteConnection(id: number): $CancellablePromise<void> {
+    return $Call.ByID(629468635, id);
+}
+
 export function GetConnections(): $CancellablePromise<types$0.Connection[] | null> {
     return $Call.ByID(3875144445);
 }
