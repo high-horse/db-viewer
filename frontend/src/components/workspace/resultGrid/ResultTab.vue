@@ -247,8 +247,7 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
-                        @click="$event.detail === 3 && (tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type))"
-
+                        @click="col.name !== 'sn' && ($event.detail === 3 && isMongoResult ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
                         <!-- @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)" -->
 
@@ -375,14 +374,23 @@ import { sortResultRows } from "@/utils/resultSort";
 const documentDialog = ref(false);
 const selectedDocument = ref("");
 function inspectDocument(value: unknown, type?: string) {
-    if (type !== "Extended JSON" || typeof value !== "string") return;
-    try { selectedDocument.value = JSON.stringify(JSON.parse(value), null, 2); }
-    catch { selectedDocument.value = value; }
+    if (typeof value === "string") {
+        if (type === "string") selectedDocument.value = value;
+        else {
+            try { selectedDocument.value = JSON.stringify(JSON.parse(value), null, 2); }
+            catch { selectedDocument.value = value; }
+        }
+    } else {
+        selectedDocument.value = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
+    }
     documentDialog.value = true;
 }
 
 const tableEdits = useTableEditsStore();
 const editState = computed(() => props.tableTabId ? tableEdits.states[props.tableTabId] : undefined);
+const isMongoResult = computed(() => props.result.Documents !== undefined
+    || editState.value?.info?.driver === "mongodb"
+    || props.result.Columns.some(column => column.Type === "Extended JSON"));
 const navigationBlocked = computed(() => !!editState.value?.drafts.length || !!editState.value?.saving);
 const selectedRowKey = ref("");
 const rowEditor = ref<InstanceType<typeof TableDataEditor> | null>(null);
