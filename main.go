@@ -6,6 +6,8 @@ import (
 	"embed"
 
 	"log"
+	"os"
+	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -19,13 +21,17 @@ import (
 var assets embed.FS
 
 func main() {
-
+	if runtime.GOOS == "linux" {
+		if err := os.Setenv("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1"); err != nil {
+			log.Fatalf("failed to configure WebKit sandbox: %v", err)
+		}
+	}
 	if _, err := db.InitDb(); err != nil {
 		log.Fatalf("failed to initialise local database: %v", err)
 	}
 
 	dbService := app.NewDbService(db.NewHistoryRepository(db.Conn))
-	
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
