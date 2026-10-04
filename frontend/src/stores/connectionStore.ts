@@ -5,12 +5,44 @@ import type { Connection } from "@bindings/db-viewer/internal/types";
 import { DbService } from "@bindings/db-viewer/internal/app";
 import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
 import { Notify } from "quasar";
-import type { InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
+import type { InspectColumnInfo, InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
 
 export const useConnectionStore = defineStore("connection", () => {
   const selectedConnection = ref<Connection | null>(null);
   const activeConnection = ref<Connection | null>(null);
   const activeConnectionMetadata = ref<InspectTableInfo[] | null>(null);
+
+  const tableColumns = ref<Record<string, InspectColumnInfo[]>>({});
+  const pendingColumns = new Map<string, Promise<InspectColumnInfo[]>>();
+  let metadataGeneration = 0;
+  const columnKey = (table: InspectTableInfo) => JSON.stringify([table.database, table.schema || "", table.name]);
+  function clearColumnMetadata() {
+    metadataGeneration++;
+    tableColumns.value = {};
+    pendingColumns.clear();
+  }
+  function getCachedTableColumns(table: InspectTableInfo): InspectColumnInfo[] {
+    return tableColumns.value[columnKey(table)] || [];
+  }
+  async function loadTableColumns(table: InspectTableInfo): Promise<InspectColumnInfo[]> {
+    const connection = activeConnection.value;
+    if (!connection || connection.driver === "mongodb") return [];
+    const key = columnKey(table);
+    if (tableColumns.value[key]) return tableColumns.value[key];
+    const pending = pendingColumns.get(key);
+    if (pending) return pending;
+    const generation = metadataGeneration;
+    const request = DbService.InspectTableColumns({ connectionId: String(connection.id),
+      name: table.name, schema: table.schema || "", database: table.database }).then(columns => {
+        if (generation !== metadataGeneration) return [];
+        tableColumns.value[key] = columns || [];
+        return tableColumns.value[key];
+      }).finally(() => {
+        if (pendingColumns.get(key) === request) pendingColumns.delete(key);
+      });
+    pendingColumns.set(key, request);
+    return request;
+  }
 
   const searchTerm = ref<string>("");
   
@@ -35,6 +67,11 @@ export const useConnectionStore = defineStore("connection", () => {
     selectedConnection.value = null;
   }
   function setActiveSession(session: Connection) {
+    const previous = activeConnection.value;
+    if (!previous || previous.id !== session.id || previous.driver !== session.driver || previous.dbname !== session.dbname) {
+      activeConnectionMetadata.value = null;
+      clearColumnMetadata();
+    }
     activeConnection.value = session;
   }
 
@@ -44,6 +81,8 @@ export const useConnectionStore = defineStore("connection", () => {
   
   function clearActiveSession() {
     activeConnection.value = null;
+    activeConnectionMetadata.value = null;
+    clearColumnMetadata();
   }
 
   async function getConnections() {
@@ -158,6 +197,7 @@ export const useConnectionStore = defineStore("connection", () => {
     try {
       loadingStates.value.setActiveConnectionMetadata = true;
       if (!activeConnection.value) return;
+      clearColumnMetadata();
       activeConnectionMetadata.value = await DbService.InspectDatabase();
     } catch (error) {
       console.error(error);
@@ -167,11 +207,13 @@ export const useConnectionStore = defineStore("connection", () => {
   }
 
   function resetStore() {
+    clearColumnMetadata();
     connectionError.value = null;
     connectingConnectionId.value = null;
     selectedConnection.value = null;
     activeConnection.value = null;
     activeConnectionMetadata.value = null;
+    clearColumnMetadata();
     
     searchTerm.value = "";
     
@@ -198,6 +240,9 @@ export const useConnectionStore = defineStore("connection", () => {
     connectionError,
     showNewConnectionDialog,
     activeConnectionMetadata,
+    tableColumns,
+    getCachedTableColumns,
+    loadTableColumns,
     
     setSelectedSession,
     clearSelectedSession,
