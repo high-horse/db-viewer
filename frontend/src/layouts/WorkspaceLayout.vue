@@ -1,11 +1,11 @@
 <template>
     <div
-        class="h-screen w-screen flex flex-col bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-text"
+        class="h-screen w-screen flex flex-col flex-nowrap bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-text"
     >
         <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect(false)" />
 
-        <div class="grow flex relative min-w-0 min-h-0 overflow-hidden">
+        <div class="flex-1 flex flex-nowrap relative min-w-0 min-h-0 overflow-hidden">
             <q-splitter
                 v-model="sidebarWidth"
                 :limits="[15, 35]"
@@ -21,7 +21,7 @@
                 <!-- MAIN -->
                 <template #after>
                     <div
-                        class="h-full min-w-0 min-h-0 overflow-hidden flex flex-col"
+                        class="h-full min-w-0 min-h-0 overflow-hidden flex flex-col flex-nowrap"
                     >
                         <WorkspaceTabs
                             :tabs="queryTabsStore.tabs"

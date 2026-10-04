@@ -1,7 +1,7 @@
 <template>
     <div
         ref="editorContainer"
-        class="h-full w-full min-w-0 max-w-full overflow-hidden"
+        class="h-full w-full min-h-0 min-w-0 max-w-full overflow-hidden"
     />
 </template>
 
@@ -203,6 +203,8 @@ onMounted(() => {
             
                 ".cm-scroller": {
                     overflow: "auto",
+                    flex: "1 1 0",
+                    maxHeight: "100%",
                     minWidth: "0",
                     minHeight: "0",
                     maxWidth: "100%",
