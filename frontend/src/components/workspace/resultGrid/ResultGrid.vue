@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full flex flex-col bg-[#100e0c]">
+    <div class="h-full w-full min-h-0 min-w-0 flex flex-col flex-nowrap overflow-hidden bg-[#100e0c]">
         <!-- Result Header -->
         <div
             class="h-8 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-3 text-[11px] font-mono text-[#6b7280]"
@@ -44,7 +44,7 @@
         <!-- Loading -->
         <div
             v-if="loading && !result"
-            class="flex-grow flex flex-col items-center justify-center gap-3"
+            class="flex-1 min-h-0 min-w-0 overflow-auto flex flex-col flex-nowrap items-center justify-center gap-3"
         >
             <q-spinner-dots color="amber" size="32px" />
 
@@ -56,7 +56,7 @@
         <!-- Error -->
         <div
             v-else-if="error"
-            class="flex-grow flex flex-col items-center justify-center gap-3"
+            class="flex-1 min-h-0 min-w-0 overflow-auto flex flex-col flex-nowrap items-center justify-center gap-3"
         >
             <q-icon
                 name="error_outline"
@@ -65,7 +65,7 @@
             />
 
             <div
-                class="text-xs text-red-300 font-mono max-w-xl text-center px-6"
+                class="result-error text-xs text-red-300 font-mono max-w-xl text-center px-6"
             >
                 {{ error }}
             </div>
@@ -130,7 +130,7 @@
         <!-- Empty -->
         <div
             v-else
-            class="flex-grow flex flex-col justify-center items-center gap-3 text-[#4b4540]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap justify-center items-center gap-3 text-[#4b4540]"
         >
             <q-icon
                 name="table_rows"
@@ -193,6 +193,8 @@ watch(
 
 
 <style scoped>
+.result-error { overflow-wrap: anywhere; white-space: pre-wrap; flex-shrink: 0; max-width: 100%; }
+
 .result-sub-tabs {
     height: 30px;
     min-height: 30px;

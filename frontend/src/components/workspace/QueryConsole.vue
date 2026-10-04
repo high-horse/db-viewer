@@ -1,16 +1,16 @@
 <template>
     <div
-        class="h-full w-full min-w-0 min-h-0 flex flex-col bg-[#0c0b09] overflow-hidden"
+        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#0c0b09] overflow-hidden"
     >
 
         <!-- Query info -->
         <div
-            class="h-7 shrink-0 bg-[#100e0c] border-b border-[#292521] flex items-center justify-between px-3"
+            class="h-7 shrink-0 bg-[#100e0c] border-b border-[#292521] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
         >
-            <div class="flex items-center gap-3">
+            <div class="flex flex-nowrap items-center gap-3 min-w-0">
                 <span
                     v-if="activeTab"
-                    class="text-[10px] font-mono text-[#6b7280]"
+                    class="text-[10px] font-mono text-[#6b7280] truncate"
                 >
                     {{ activeTab.title }}
                 </span>
@@ -25,7 +25,7 @@
 
             <div
                 v-if="activeTab"
-                class="flex items-center gap-2 text-[10px] text-[#4b4540]"
+                class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#4b4540]"
             >
                 <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
                 <span>Ctrl + Enter</span>
@@ -58,7 +58,7 @@
         <!-- Query Editor -->
         <div
             v-if="activeTab"
-            class="flex-grow min-h-0 min-w-0 relative overflow-hidden"
+            class="flex-1 min-h-0 min-w-0 relative overflow-hidden"
         >
             <SqlEditor
                 ref="sqlEditorRef"
@@ -73,7 +73,7 @@
         <!-- No active query -->
         <div
             v-else
-            class="flex-grow flex flex-col items-center justify-center gap-3 bg-[#0c0b09]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#0c0b09]"
         >
             <q-icon
                 name="code"

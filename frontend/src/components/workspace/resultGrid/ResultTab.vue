@@ -247,10 +247,8 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
-                        @click="col.name !== 'sn' && ($event.detail === 3 && isMongoResult ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
+                        @click="col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
-                        <!-- @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)" -->
-
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
                             <span class="row-number">
@@ -277,8 +275,8 @@
         <q-dialog v-model="documentDialog">
             <q-card class="bg-[#161310] text-gray-300" style="width: 800px; max-width: 90vw">
                 <q-card-section class="flex items-center justify-between">
-                    <span>MongoDB document</span>
-                    <q-btn flat round dense icon="close" v-close-popup />
+                    <span>{{ documentTitle }}</span>
+                    <q-btn flat round dense icon="close" aria-label="Close JSON details" v-close-popup />
                 </q-card-section>
                 <q-card-section style="max-height: 70vh; overflow: auto">
                     <pre class="text-xs font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
@@ -373,7 +371,12 @@ import { sortResultRows } from "@/utils/resultSort";
 
 const documentDialog = ref(false);
 const selectedDocument = ref("");
+const documentTitle = ref("JSON value");
+function isJSONColumn(type?: string): boolean {
+    return /(?:^|[.\s_])jsonb?(?:\[\])?$/i.test(type?.trim() ?? "");
+}
 function inspectDocument(value: unknown, type?: string) {
+    documentTitle.value = isMongoResult.value ? "MongoDB document" : "JSON value";
     if (typeof value === "string") {
         if (type === "string") selectedDocument.value = value;
         else {
