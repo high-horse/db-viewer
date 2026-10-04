@@ -64,6 +64,7 @@
                 ref="sqlEditorRef"
                 :model-value="activeTab.sql"
                 :db-driver="dbDriver"
+                :tables="connectionStore.activeConnectionMetadata ?? []"
                 @update:model-value="handleSqlUpdate"
                 @execute="executeActiveTab"
             />

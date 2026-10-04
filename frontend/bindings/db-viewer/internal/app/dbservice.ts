@@ -51,6 +51,13 @@ export function InspectDatabase(): $CancellablePromise<entities$0.InspectTableIn
     return $Call.ByID(2574358800);
 }
 
+/**
+ * InspectTableColumns is read-only metadata, including for views and read-only connections.
+ */
+export function InspectTableColumns(table: entities$0.TableRef): $CancellablePromise<entities$0.InspectColumnInfo[] | null> {
+    return $Call.ByID(206013314, table);
+}
+
 export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(2383367173, config);
 }

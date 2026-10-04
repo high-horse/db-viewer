@@ -14,21 +14,27 @@ import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
-import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
+import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
 import { nord } from "@fsegurai/codemirror-theme-nord";
 import { materialDark } from "@fsegurai/codemirror-theme-material-dark";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { autocompletion } from "@codemirror/autocomplete";
+import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable } from "@/utils/sqlCompletion";
+import type { InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { acceptCompletion, autocompletion, type CompletionContext } from "@codemirror/autocomplete";
 
 const props = defineProps<{
     modelValue: string;
     dbDriver: "pgx" | "mysql" | "sqlite" | "mongodb";
+    tables?: InspectTableInfo[];
 }>();
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
     execute: [sql: string];
 }>();
+
+const connectionStore = useConnectionStore();
 
 const editorContainer = ref<HTMLElement | null>(null);
 
@@ -48,9 +54,31 @@ function getDialect(driver: string) {
     }
 }
 
+async function completeSQLSchema(context: CompletionContext) {
+    if (props.dbDriver === "mongodb") return null;
+    const tables = props.tables ?? [];
+    const requested = new Set(getSQLTableReferences(context.state, context.pos)
+        .map(reference => matchingSQLTable(tables, reference.path)).filter((table): table is InspectTableInfo => !!table));
+    await Promise.all([...requested].map(table => connectionStore.loadTableColumns(table).catch(() => [])));
+    if (context.aborted || tables !== props.tables) return null;
+    const find = (table: { name: string; schema?: string }) => tables.find(item => item.name === table.name && item.schema === table.schema);
+    return schemaCompletionSource({ dialect: getDialect(props.dbDriver),
+        schema: buildSQLCompletionSchema(tables, props.dbDriver,
+            table => { const cached = find(table); return cached ? connectionStore.getCachedTableColumns(cached) : []; },
+            table => { const selected = find(table); if (selected) void connectionStore.loadTableColumns(selected).catch(() => {}); }),
+    })(context);
+}
+
 function languageExtension(driver: string) {
-    if (driver === "mongodb") return [];
-    return sql({ dialect: getDialect(driver), upperCaseKeywords: true });
+    return [
+        driver === "mongodb" ? [] : sql({ dialect: getDialect(driver), upperCaseKeywords: true }),
+        autocompletion({
+            activateOnTyping: true,
+            defaultKeymap: true,
+            closeOnBlur: true,
+            override: driver === "mongodb" ? [] : [completeSQLSchema, keywordCompletionSource(getDialect(driver), true)],
+        }),
+    ];
 }
 
 function sqlSyntaxLinter(view: EditorView): Diagnostic[] {
@@ -150,11 +178,6 @@ onMounted(() => {
                 languageExtension(props.dbDriver),
             ),
 
-            autocompletion({
-                activateOnTyping: false, // disable automatic completion to reduce CPU
-                defaultKeymap: true, // Ctrl+Space to force-open
-                closeOnBlur: true,
-            }),
             // linter(sqlSyntaxLinter, {
             //     delay: 300,
             // }),
@@ -163,7 +186,7 @@ onMounted(() => {
             materialDark, // oneDark, // nord,
             // Basic editing
             //
-            keymap.of([...defaultKeymap, indentWithTab]),
+            keymap.of([{ key: "Tab", run: acceptCompletion }, ...defaultKeymap, indentWithTab]),
             EditorView.lineWrapping,
             // Custom styling
             EditorView.theme({
@@ -222,6 +245,19 @@ onMounted(() => {
                         "rgba(245, 158, 11, 0.20) !important",
                 },
             
+                ".cm-tooltip-autocomplete": {
+                    backgroundColor: "#161310",
+                    color: "#d1d5db",
+                    border: "1px solid #34302b",
+                    borderRadius: "6px",
+                },
+                ".cm-tooltip-autocomplete ul li[aria-selected]": {
+                    backgroundColor: "#292115",
+                    color: "#f59e0b",
+                },
+                ".cm-completionDetail": {
+                    color: "#94a3b8",
+                },
                 ".cm-cursor": {
                     borderLeftColor: "#f59e0b",
                 },
@@ -280,8 +316,8 @@ watch(
 );
 
 watch(
-    () => props.dbDriver,
-    (driver) => {
+    () => [props.dbDriver, props.tables] as const,
+    ([driver]) => {
         if (!editorView) {
             return;
         }
@@ -292,6 +328,7 @@ watch(
             ),
         });
     },
+    { deep: true },
 );
 
 onBeforeUnmount(() => {

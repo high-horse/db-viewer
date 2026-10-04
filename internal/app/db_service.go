@@ -148,6 +148,26 @@ func (s *DbService) InspectDatabase(ctx context.Context) ([]entities.InspectTabl
 	return driver.Inspector().ListTables(ctx, conn)
 }
 
+// InspectTableColumns is read-only metadata, including for views and read-only connections.
+func (s *DbService) InspectTableColumns(ctx context.Context, table entities.TableRef) ([]entities.InspectColumnInfo, error) {
+	conn, ok := s.manager.Active()
+	if !ok || conn.ID() != table.ConnectionID {
+		return nil, fmt.Errorf("the table belongs to a different or disconnected connection")
+	}
+	if conn.Type() == "mongodb" {
+		return nil, fmt.Errorf("SQL column metadata is not available for MongoDB")
+	}
+	driver, err := s.factory.Driver(conn.Type())
+	if err != nil {
+		return nil, err
+	}
+	operation, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return driver.Inspector().ListColumns(operation, conn, entities.InspectTableInfo{
+		Name: table.Name, Schema: table.Schema, Database: table.Database,
+	})
+}
+
 func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryInput) (*entities.QueryResult, error) {
 	conn, ok := s.manager.Active()
 	if !ok {

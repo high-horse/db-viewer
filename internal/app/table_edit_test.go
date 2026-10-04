@@ -145,3 +145,34 @@ func TestTableEditorLargeIntegerKeys(t *testing.T) {
 		t.Fatalf("wrong row updated: %s %v", name, err)
 	}
 }
+
+func TestInspectTableColumnsForReadOnlyAndViews(t *testing.T) {
+	s, table, conn := editService(t)
+	ctx := context.Background()
+	if _, err := conn.DB().Exec(`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT); CREATE VIEW item_view AS SELECT name FROM items`); err != nil {
+		t.Fatal(err)
+	}
+	columns, err := s.InspectTableColumns(ctx, table)
+	if err != nil || len(columns) != 2 || columns[1].Name != "name" {
+		t.Fatalf("table columns: %+v %v", columns, err)
+	}
+	table.Name = "item_view"
+	columns, err = s.InspectTableColumns(ctx, table)
+	if err != nil || len(columns) != 1 || columns[0].Name != "name" {
+		t.Fatalf("view columns: %+v %v", columns, err)
+	}
+	table.ConnectionID = "other"
+	if _, err := s.InspectTableColumns(ctx, table); err == nil {
+		t.Fatal("accepted another connection's table")
+	}
+	config := conn.Config()
+	config.ReadOnly = true
+	if _, err := s.Connect(ctx, config); err != nil {
+		t.Fatal(err)
+	}
+	table.ConnectionID = "test"
+	columns, err = s.InspectTableColumns(ctx, table)
+	if err != nil || len(columns) != 1 {
+		t.Fatalf("read-only columns: %+v %v", columns, err)
+	}
+}
