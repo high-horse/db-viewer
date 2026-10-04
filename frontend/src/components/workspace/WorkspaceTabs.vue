@@ -66,6 +66,9 @@
                                 size="11px"
                             />
                         </div>
+                        <q-tooltip v-if="tab.type === 'result'" :delay="300">
+                            {{ tab.title }}
+                        </q-tooltip>
                     </q-btn>
 
                     <!-- Close -->

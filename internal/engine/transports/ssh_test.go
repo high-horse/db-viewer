@@ -1,11 +1,15 @@
 package transports
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"db-viewer/internal/engine/entities"
+	"encoding/pem"
+	"fmt"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"io"
 	"net"
@@ -19,7 +23,18 @@ import (
 func TestSSHTunnel(t *testing.T) {
 	_, key, _ := ed25519.GenerateKey(rand.Reader)
 	signer, _ := ssh.NewSignerFromKey(key)
-	cfg := &ssh.ServerConfig{PasswordCallback: func(_ ssh.ConnMetadata, _ []byte) (*ssh.Permissions, error) { return nil, nil }}
+	cfg := &ssh.ServerConfig{PasswordCallback: func(meta ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		if meta.User() != "tester" || string(password) != "secret" {
+			return nil, fmt.Errorf("invalid credentials")
+		}
+		return nil, nil
+	}}
+	cfg.PublicKeyCallback = func(meta ssh.ConnMetadata, public ssh.PublicKey) (*ssh.Permissions, error) {
+		if meta.User() == "tester" && bytes.Equal(public.Marshal(), signer.PublicKey().Marshal()) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("invalid key")
+	}
 	cfg.AddHostKey(signer)
 	server, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -74,6 +89,70 @@ func TestSSHTunnel(t *testing.T) {
 	host, portString, _ := net.SplitHostPort(server.Addr().String())
 	port, _ := strconv.Atoi(portString)
 	config := entities.SSHConfig{Host: host, Port: port, Username: "tester", AuthMethod: "password", Password: "secret"}
+	if err := TestSSH(context.Background(), config); err != nil {
+		t.Fatalf("SSH test failed: %v", err)
+	}
+	spaced := config
+	spaced.Host = " " + config.Host + " "
+	spaced.Username = " tester "
+	if err := TestSSH(context.Background(), spaced); err != nil {
+		t.Fatalf("whitespace normalization failed: %v", err)
+	}
+	invalid := config
+	invalid.Password = "wrong"
+	if err := TestSSH(context.Background(), invalid); err == nil {
+		t.Fatal("SSH test accepted invalid credentials")
+	}
+	cancelled, stop := context.WithCancel(context.Background())
+	stop()
+	if err := TestSSH(cancelled, config); err == nil {
+		t.Fatal("SSH test ignored cancellation")
+	}
+	keyBlock, err := ssh.MarshalPrivateKey(key, "test identity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(home, ".ssh", "id_ed25519")
+	if err := os.WriteFile(keyPath, pem.EncodeToMemory(keyBlock), 0600); err != nil {
+		t.Fatal(err)
+	}
+	config.Password = ""
+	t.Setenv("SSH_AUTH_SOCK", "")
+	if err := TestSSH(context.Background(), config); err != nil {
+		t.Fatalf("default local key failed: %v", err)
+	}
+	customPath := filepath.Join(home, ".ssh", "custom_key")
+	if err := os.Rename(keyPath, customPath); err != nil {
+		t.Fatal(err)
+	}
+	explicit := config
+	explicit.AuthMethod, explicit.PrivateKey = "private_key", customPath
+	if err := TestSSH(context.Background(), explicit); err != nil {
+		t.Fatalf("explicit key failed: %v", err)
+	}
+	socket := filepath.Join(home, "agent.sock")
+	agentListener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer agentListener.Close()
+	keyring := agent.NewKeyring()
+	if err := keyring.Add(agent.AddedKey{PrivateKey: key}); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		for {
+			conn, err := agentListener.Accept()
+			if err != nil {
+				return
+			}
+			go func() { defer conn.Close(); _ = agent.ServeAgent(keyring, conn) }()
+		}
+	}()
+	t.Setenv("SSH_AUTH_SOCK", socket)
+	if err := TestSSH(context.Background(), config); err != nil {
+		t.Fatalf("agent authentication failed: %v", err)
+	}
 	tunnel := NewSSHConfig("database.internal", 5432, config)
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := tunnel.Connect(ctx); err != nil {
@@ -110,6 +189,9 @@ func TestSSHTunnel(t *testing.T) {
 	otherSigner, _ := ssh.NewSignerFromKey(other)
 	if err := os.WriteFile(known, []byte(knownhosts.Line([]string{knownhosts.Normalize(server.Addr().String())}, otherSigner.PublicKey())+"\n"), 0600); err != nil {
 		t.Fatal(err)
+	}
+	if err := TestSSH(context.Background(), config); err == nil {
+		t.Fatal("SSH test accepted an untrusted host key")
 	}
 	if err := NewSSHConfig("database.internal", 5432, config).Connect(context.Background()); err == nil {
 		t.Fatal("accepted an untrusted host key")

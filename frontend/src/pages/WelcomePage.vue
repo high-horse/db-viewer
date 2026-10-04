@@ -1,5 +1,5 @@
 <template>
-  <q-page class="flex items-start sm:items-center justify-center min-h-screen q-pa-md py-8">
+  <q-page class="row items-center justify-center q-pa-lg">
     <WelcomeIndex />
   </q-page>
 </template>

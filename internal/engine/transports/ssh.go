@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
@@ -52,84 +53,13 @@ func (s *SSH) Connect(ctx context.Context) error {
 	if s.client != nil {
 		return nil
 	}
-	cfg := s.config
-	if strings.TrimSpace(cfg.Host) == "" || strings.TrimSpace(cfg.Username) == "" {
-		return fmt.Errorf("SSH host and username are required")
+	if s.dbPort < 1 || s.dbPort > 65535 {
+		return fmt.Errorf("database port must be between 1 and 65535")
 	}
-	if cfg.Port == 0 {
-		cfg.Port = 22
-	}
-	if cfg.Port < 1 || cfg.Port > 65535 || s.dbPort < 1 || s.dbPort > 65535 {
-		return fmt.Errorf("SSH and database ports must be between 1 and 65535")
-	}
-	var auth ssh.AuthMethod
-	switch cfg.AuthMethod {
-	case "password":
-		if cfg.Password == "" {
-			return fmt.Errorf("SSH password is required")
-		}
-		auth = ssh.Password(cfg.Password)
-	case "private_key":
-		key := []byte(cfg.PrivateKey)
-		if !strings.Contains(cfg.PrivateKey, "-----BEGIN") {
-			path := cfg.PrivateKey
-			if strings.HasPrefix(path, "~/") {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return err
-				}
-				path = filepath.Join(home, path[2:])
-			}
-			var err error
-			key, err = os.ReadFile(path)
-			if err != nil {
-				return fmt.Errorf("read SSH private key: %w", err)
-			}
-		}
-		var signer ssh.Signer
-		var err error
-		if cfg.Passphrase != "" {
-			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(cfg.Passphrase))
-		} else {
-			signer, err = ssh.ParsePrivateKey(key)
-		}
-		if err != nil {
-			return fmt.Errorf("parse SSH private key: %w", err)
-		}
-		auth = ssh.PublicKeys(signer)
-	default:
-		return fmt.Errorf("unsupported SSH authentication method %q", cfg.AuthMethod)
-	}
-	home, err := os.UserHomeDir()
+	client, err := dialSSH(ctx, s.config)
 	if err != nil {
 		return err
 	}
-	verify, err := knownhosts.New(filepath.Join(home, ".ssh", "known_hosts"))
-	if err != nil {
-		return fmt.Errorf("load SSH known_hosts (connect with OpenSSH first to trust the server): %w", err)
-	}
-	setup, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	address := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
-	raw, err := (&net.Dialer{}).DialContext(setup, "tcp", address)
-	if err != nil {
-		return fmt.Errorf("dial SSH server: %w", err)
-	}
-	stop := context.AfterFunc(setup, func() { _ = raw.Close() })
-	deadline, _ := setup.Deadline()
-	_ = raw.SetDeadline(deadline)
-	conn, channels, requests, err := ssh.NewClientConn(raw, address, &ssh.ClientConfig{User: cfg.Username, Auth: []ssh.AuthMethod{auth}, HostKeyCallback: verify})
-	stop()
-	if err != nil {
-		_ = raw.Close()
-		return fmt.Errorf("SSH handshake (verify the server with OpenSSH first): %w", err)
-	}
-	if err := setup.Err(); err != nil {
-		_ = conn.Close()
-		return err
-	}
-	_ = raw.SetDeadline(time.Time{})
-	client := ssh.NewClient(conn, channels, requests)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		_ = client.Close()
@@ -141,6 +71,135 @@ func (s *SSH) Connect(ctx context.Context) error {
 	s.wg.Add(1)
 	go s.serve(tunnelCtx, listener, client)
 	return nil
+}
+
+// TestSSH checks authentication and host identity without creating a database tunnel.
+func TestSSH(ctx context.Context, config entities.SSHConfig) error {
+	client, err := dialSSH(ctx, config)
+	if err != nil {
+		return err
+	}
+	return client.Close()
+}
+
+func dialSSH(ctx context.Context, cfg entities.SSHConfig) (*ssh.Client, error) {
+	cfg.Host = strings.TrimSpace(cfg.Host)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	if cfg.Host == "" || cfg.Username == "" {
+		return nil, fmt.Errorf("SSH host and username are required")
+	}
+	if cfg.Port == 0 {
+		cfg.Port = 22
+	}
+	if cfg.Port < 1 || cfg.Port > 65535 {
+		return nil, fmt.Errorf("SSH port must be between 1 and 65535")
+	}
+	var auth []ssh.AuthMethod
+	var agentConn net.Conn
+	defer func() {
+		if agentConn != nil {
+			_ = agentConn.Close()
+		}
+	}()
+	switch cfg.AuthMethod {
+	case "", "auto", "password":
+		// Match the common passwordless terminal workflow: agent, then local keys.
+		var signers []ssh.Signer
+		if socket := os.Getenv("SSH_AUTH_SOCK"); socket != "" {
+			agentCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			agentConn, _ = (&net.Dialer{}).DialContext(agentCtx, "unix", socket)
+			cancel()
+			if agentConn != nil {
+				_ = agentConn.SetDeadline(time.Now().Add(3 * time.Second))
+				signers, _ = agent.NewClient(agentConn).Signers()
+				_ = agentConn.SetDeadline(time.Time{})
+			}
+		}
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range []string{"id_ed25519", "id_ecdsa", "id_rsa"} {
+			key, err := os.ReadFile(filepath.Join(home, ".ssh", name))
+			if err != nil {
+				continue
+			}
+			signer, err := ssh.ParsePrivateKey(key)
+			if err == nil {
+				signers = append(signers, signer)
+			}
+		}
+		if len(signers) > 0 {
+			auth = append(auth, ssh.PublicKeys(signers...))
+		}
+		if cfg.Password != "" {
+			auth = append(auth, ssh.Password(cfg.Password))
+		}
+	case "private_key":
+		key := []byte(cfg.PrivateKey)
+		if !strings.Contains(cfg.PrivateKey, "-----BEGIN") {
+			path := cfg.PrivateKey
+			if strings.HasPrefix(path, "~/") {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return nil, err
+				}
+				path = filepath.Join(home, path[2:])
+			}
+			var err error
+			key, err = os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("read SSH private key: %w", err)
+			}
+		}
+		var signer ssh.Signer
+		var err error
+		if cfg.Passphrase != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(cfg.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey(key)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parse SSH private key: %w", err)
+		}
+		auth = append(auth, ssh.PublicKeys(signer))
+	default:
+		return nil, fmt.Errorf("unsupported SSH authentication method %q", cfg.AuthMethod)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	verify, err := knownhosts.New(filepath.Join(home, ".ssh", "known_hosts"))
+	if err != nil {
+		return nil, fmt.Errorf("load SSH known_hosts (connect with OpenSSH first to trust the server): %w", err)
+	}
+	setup, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	address := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+	raw, err := (&net.Dialer{}).DialContext(setup, "tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("dial SSH server: %w", err)
+	}
+	stop := context.AfterFunc(setup, func() { _ = raw.Close() })
+	deadline, _ := setup.Deadline()
+	_ = raw.SetDeadline(deadline)
+	conn, channels, requests, err := ssh.NewClientConn(raw, address, &ssh.ClientConfig{User: cfg.Username, Auth: auth, HostKeyCallback: verify})
+	stop()
+	if err != nil {
+		_ = raw.Close()
+		if (cfg.AuthMethod == "" || cfg.AuthMethod == "auto" || cfg.AuthMethod == "password") && cfg.Password == "" {
+			return nil, fmt.Errorf("SSH handshake using local keys/agent: %w (for a custom or encrypted key, choose Private Key or load it into ssh-agent)", err)
+		}
+		return nil, fmt.Errorf("SSH handshake: %w", err)
+	}
+	if err := setup.Err(); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	_ = raw.SetDeadline(time.Time{})
+	client := ssh.NewClient(conn, channels, requests)
+	return client, nil
 }
 
 func (s *SSH) serve(ctx context.Context, listener net.Listener, client *ssh.Client) {

@@ -22,6 +22,10 @@ export const useConnectionStore = defineStore("connection", () => {
     connecting: false,
     setActiveConnectionMetadata: false,
   });
+  const connectingConnectionId = ref<number | null>(null);
+  const connectionStage = ref("Checking connection…");
+  const connectionError = ref<{ connectionId: number; name: string; message: string } | null>(null);
+
   const isConnected = computed(() => activeConnection.value !== null);
 
   function setSelectedSession(session: Connection) {
@@ -119,35 +123,33 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
-  // Ping first, then actually register/activate the connection on the backend.
+  // Keep backend errors intact so the portal can show a useful failure dialog.
   async function connectToSession(connection: Connection): Promise<boolean> {
+    if (loadingStates.value.connecting) return false;
     loadingStates.value.connecting = true;
+    connectingConnectionId.value = connection.id;
+    connectionStage.value = "Checking connection…";
+    connectionError.value = null;
     try {
-      const reachable = await pingConnection(connection);
-      if (!reachable) {
-        Notify.create({ type: "negative", message: "Failed to connect" });
-        return false;
+      const config = toConfig(connection);
+      if (!(await DbService.PingConfig(config))) {
+        throw new Error("The database connection check failed. Check the host, port, credentials, and SSH settings.");
       }
-
-      // Connection already has a saved row (has an id) — use Connect, not SaveAndConnect,
-      // or you'll insert a duplicate row every time someone double-clicks it.
-      const connected = await DbService.Connect(toConfig(connection));
-      if (!connected) {
-        Notify.create({ type: "negative", message: "Failed to connect" });
-        return false;
+      connectionStage.value = "Connecting…";
+      if (!(await DbService.Connect(config))) {
+        throw new Error("The database could not establish a connection. Check your saved connection settings and try again.");
       }
-
       setActiveSession(connection);
-      Notify.create({ type: "positive", message: "Connection established" });
+      Notify.create({ type: "positive", message: `Connected to ${connection.name}` });
       return true;
     } catch (error) {
-      Notify.create({
-        type: "negative",
-        message: error instanceof Error ? error.message : String(error),
-      });
-      console.error(error);
+      const message = error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : String(error || "The connection failed. Check your saved settings and try again.");
+      connectionError.value = { connectionId: connection.id, name: connection.name, message };
       return false;
     } finally {
+      connectingConnectionId.value = null;
       loadingStates.value.connecting = false;
     }
   }
@@ -165,6 +167,8 @@ export const useConnectionStore = defineStore("connection", () => {
   }
 
   function resetStore() {
+    connectionError.value = null;
+    connectingConnectionId.value = null;
     selectedConnection.value = null;
     activeConnection.value = null;
     activeConnectionMetadata.value = null;
@@ -189,6 +193,9 @@ export const useConnectionStore = defineStore("connection", () => {
     isConnected,
     connections,
     loadingStates,
+    connectingConnectionId,
+    connectionStage,
+    connectionError,
     showNewConnectionDialog,
     activeConnectionMetadata,
     
