@@ -2,6 +2,10 @@
     <div
         class="w-full max-w-xl bg-[#161310] backdrop-blur-md p-6 rounded-xl border shadow-2xl"
     >
+        <div v-if="editingId" class="mb-4 flex items-center justify-between">
+            <span class="text-sm font-semibold text-white">Edit Connection</span>
+            <q-btn flat dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
+        </div>
         <!-- Header Section (Flex Container) -->
         <!-- <div class="flex items-center gap-3 mb-6">
             <div>
@@ -26,12 +30,13 @@
             <q-tab name="pgx" label="PostgreSQL" />
             <q-tab name="mysql" label="MySQL" />
             <q-tab name="sqlite" label="SQLite" />
+            <q-tab name="mongodb" label="MongoDB" />
         </q-tabs>
 
         <!-- Form (Full Width) -->
         <q-form
             ref="formRef"
-            @submit="connect"
+            @submit="editingId ? saveConnection() : connect()"
             class="flex-1 flex flex-col min-h-0 px-6 pb-6 q-pt-md"
         >
             <div class="flex-1 min-h-0">
@@ -39,7 +44,8 @@
                     <template v-if="form.type !== 'sqlite'">
                         <q-input
                             v-model="form.host"
-                            label="Host"
+                            :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database Host'"
+                            :hint="form.type === 'mongodb' ? 'Host or mongodb:// / mongodb+srv:// URI. With SSH, enter a host reached from the SSH server.' : 'With SSH, this host is reached from the SSH server'"
                             class="w-full"
                             :rules="[required]"
                             outlined
@@ -47,20 +53,22 @@
                         />
 
                         <q-input
-                            v-model="form.port"
+                            v-model.number="form.port"
                             label="Port"
                             type="number"
                             class="w-full"
-                            :rules="[required]"
+                            :disable="isMongoURI"
+                            :rules="isMongoURI ? [] : [validPort]"
                             outlined
                             dense
                         />
 
                         <q-input
                             v-model="form.user"
-                            label="User"
+                            :label="form.type === 'mongodb' ? 'User (optional; host connections use admin)' : 'User'"
                             class="w-full"
-                            :rules="[required]"
+                            :disable="isMongoURI"
+                            :rules="form.type === 'mongodb' ? [] : [required]"
                             outlined
                             dense
                         />
@@ -69,6 +77,7 @@
                             v-model="form.password"
                             label="Password"
                             type="password"
+                            :disable="isMongoURI"
                             class="w-full q-pb-md"
                             outlined
                             dense
@@ -98,7 +107,7 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <button
+                                <q-btn flat dense no-caps
                                     v-for="color in colors"
                                     :key="color"
                                     type="button"
@@ -108,7 +117,7 @@
                                             ? 'border-white ring-2 ring-white/40'
                                             : ''
                                     "
-                                    :style="{ backgroundColor: color }"
+                                    :style="{ backgroundColor: color, minHeight: '28px', padding: 0 }"
                                     @click="form.color = color"
                                 >
                                     <q-icon
@@ -117,7 +126,7 @@
                                         size="16px"
                                         color="white"
                                     />
-                                </button>
+                                </q-btn>
 
                                 <span class="text-xs text-grey-5 ml-2">
                                     {{ form.color }}
@@ -126,6 +135,7 @@
                         </div>
 
                         <q-checkbox
+                            v-if="!editingId"
                             v-model="form.save_connection"
                             label="Save connection"
                             class="w-1/2 q-pt-md"
@@ -141,16 +151,20 @@
                             outlined
                             dense
                         />
+                        <q-btn v-if="form.use_ssh" flat color="amber" label="Edit SSH Configuration" @click="sshDialog = true" />
                         <q-checkbox
                             v-model="form.use_ssh"
                             label="Connect through SSH tunnel"
                             class="w-full q-pt-md"
+                            :disable="isMongoURI"
                             dense
                         />
                     </template>
 
                     <!-- SQLite fields -->
                     <template v-else>
+                        <q-input v-model="form.connection_name" label="Connection Name" :rules="[required]" outlined dense />
+                        <q-checkbox v-model="form.readonly" label="Readonly" dense />
                         <q-input
                             v-model="form.database"
                             label="Database File"
@@ -172,9 +186,11 @@
                 color="amber"
                 class="w-full text-capitalize q-mt-md text-black"
                 type="submit"
+                :loading="saving"
+                :disable="loadingSavedConnection"
                 rounded
             >
-                Test Connection
+                {{ editingId ? 'Save Changes' : 'Test Connection' }}
             </q-btn>
         </q-form>
 
@@ -185,7 +201,7 @@
                         <div class="text-base font-bold">SSH Configuration</div>
 
                         <div class="text-xs text-grey-5 q-mt-xs">
-                            Configure the SSH tunnel for this connection
+                            Configure the SSH tunnel for this connection. Trust the server using OpenSSH first; its key must be in ~/.ssh/known_hosts.
                         </div>
                     </div>
 
@@ -201,6 +217,7 @@
 
                 <q-separator dark />
 
+                <q-form ref="sshFormRef" @submit="saveSshConfig">
                 <q-card-section class="q-gutter-md">
                     <q-input
                         v-model="sshForm.name"
@@ -231,7 +248,7 @@
                                 outlined
                                 dense
                                 color="amber"
-                                :rules="[required]"
+                                :rules="[validPort]"
                             />
                         </div>
                     </div>
@@ -270,6 +287,7 @@
                         v-if="sshForm.auth_method === 'password'"
                         v-model="sshForm.password"
                         label="SSH Password"
+                        :rules="[required]"
                         type="password"
                         outlined
                         dense
@@ -280,13 +298,14 @@
                     <template v-if="sshForm.auth_method === 'private_key'">
                         <q-input
                             v-model="sshForm.private_key"
-                            label="Private Key"
+                            label="Private Key or File Path"
+                            :rules="[required]"
                             type="textarea"
                             outlined
                             dense
                             color="amber"
                             autogrow
-                            hint="Paste your SSH private key"
+                            hint="Paste the key or enter /path/to/key (or ~/.ssh/id_ed25519)"
                         />
 
                         <q-input
@@ -315,30 +334,36 @@
                         label="Save SSH Configuration"
                         color="amber"
                         text-color="black"
-                        @click="saveSshConfig"
+                        type="submit"
                     />
                 </q-card-actions>
+                </q-form>
             </q-card>
         </q-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, hydrateOnIdle } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { DbService } from "@bindings/db-viewer/internal/app";
+import { DbService, DatabaseService } from "@bindings/db-viewer/internal/app";
 import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
 import { useQuasar, Dialog, Notify } from "quasar";
 import { useActiveConnection } from "@/stores/activeConnection";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 const $q = useQuasar();
 const $router = useRouter();
+const route = useRoute();
+const editingId = computed(() => typeof route.query.edit === "string" ? route.query.edit : "");
+const loadingSavedConnection = ref(false);
+const saving = ref(false);
 const store = useConnectionStore();
 const activeConnectionStore = useActiveConnection();
 
 const formRef = ref<QForm | null>(null);
+const sshFormRef = ref<QForm | null>(null);
 
 const form = ref({
     type: "pgx",
@@ -365,6 +390,8 @@ const sshForm = ref({
 });
 
 const sshDialog = ref(false);
+const isMongoURI = computed(() => form.value.type === "mongodb" && /^mongodb(?:\+srv)?:\/\//.test(form.value.host));
+watch(isMongoURI, (enabled) => { if (enabled) form.value.use_ssh = false; });
 
 const colors = [
     "#EF4444", // Red
@@ -384,6 +411,9 @@ const colors = [
 const required = (value: string | number | null) =>
     !!value || "This field is required";
 
+const validPort = (value: string | number | null) =>
+    (Number.isInteger(Number(value)) && Number(value) > 0 && Number(value) <= 65535) || "Enter a port between 1 and 65535";
+
 async function connect() {
     const valid = await formRef.value?.validate();
 
@@ -401,7 +431,12 @@ async function connect() {
                 cancel: "Cancel",
             }).onOk(async () => {
                 try {
-                    await DbService.SaveAndConnect(parseToConfig());
+                    const config = parseToConfig();
+                    if (form.value.save_connection) {
+                        await DbService.SaveAndConnect(config);
+                    } else {
+                        await DbService.Connect(config);
+                    }
                 } catch (err: any) {
                     Dialog.create({
                         message: err?.message || "Failed to save & connect",
@@ -426,21 +461,22 @@ async function connect() {
 
 function parseToConfig() {
     return <ConnectionConfig>{
+        ID: editingId.value || undefined,
         Name: form.value.connection_name,
         Type: form.value.type,
 
         Host: form.value.host,
         Port: form.value.port,
 
-        User: form.value.user,
-        Password: form.value.password,
+        User: isMongoURI.value ? "" : form.value.user,
+        Password: isMongoURI.value ? "" : form.value.password,
         Database: form.value.database,
 
         SSL: false,
 
         SSHConfigID: null,
 
-        SSHConfig: form.value.use_ssh
+        SSHConfig: form.value.type !== "sqlite" && form.value.use_ssh
             ? {
                   Name: sshForm.value.name,
                   Host: sshForm.value.host,
@@ -459,7 +495,8 @@ function parseToConfig() {
     };
 }
 
-function saveSshConfig() {
+async function saveSshConfig() {
+    if (!(await sshFormRef.value?.validate())) return;
     sshDialog.value = false;
 }
 
@@ -484,12 +521,16 @@ function resetSshForm() {
 watch(
     () => form.value.type,
     (newVal) => {
+        if (loadingSavedConnection.value) return;
         if (newVal === "pgx") {
             form.value.port = 5432;
         } else if (newVal === "mysql") {
             form.value.port = 3306;
+        } else if (newVal === "mongodb") {
+            form.value.port = 27017;
         } else if (newVal === "sqlite") {
             form.value.port = 0;
+            form.value.use_ssh = false;
         }
     },
 );
@@ -497,6 +538,7 @@ watch(
 watch(
     () => form.value.use_ssh,
     (enabled) => {
+        if (loadingSavedConnection.value) return;
         if (enabled) {
             sshDialog.value = true;
         } else {
@@ -505,7 +547,59 @@ watch(
     },
 );
 
-onMounted(() => {
-    store.getConnections();
+async function loadSavedConnection() {
+    loadingSavedConnection.value = true;
+    try {
+        if (editingId.value) {
+            await store.getConnections();
+            const connection = store.connections.find(item => String(item.id) === editingId.value);
+            if (!connection) throw new Error("Saved connection not found");
+            const ssh = connection.ssh_config;
+            form.value = {
+                type: connection.driver, host: connection.host, port: Number(connection.port.Int64),
+                user: connection.user, password: connection.password, database: connection.dbname,
+                connection_name: connection.name, color: connection.color.Valid ? connection.color.String : "",
+                save_connection: true, readonly: connection.read_only, use_ssh: !!connection.ssh_config_id.Valid,
+            };
+            sshForm.value = {
+                name: ssh.name, host: ssh.host, port: ssh.port || 22, username: ssh.username,
+                auth_method: ssh.auth_method || "password", private_key: ssh.private_key.Valid ? ssh.private_key.String : "",
+                passphrase: ssh.passphrase.Valid ? ssh.passphrase.String : "", password: ssh.password.Valid ? ssh.password.String : "",
+            };
+        } else {
+            form.value = { type: "pgx", host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", save_connection: true, readonly: false, use_ssh: false };
+            resetSshForm();
+        }
+        sshDialog.value = false;
+        await nextTick();
+        formRef.value?.resetValidation();
+    } catch (error: any) {
+        Notify.create({ message: error?.message || "Failed to load connection", color: "negative" });
+        await cancelEdit();
+    } finally { loadingSavedConnection.value = false; }
+}
+async function cancelEdit() {
+    await $router.push({ name: "Welcome", query: {} });
+}
+async function saveConnection() {
+    if (saving.value || !(await formRef.value?.validate())) return;
+    if (form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "password" ? !sshForm.value.password : !sshForm.value.private_key))) {
+        sshDialog.value = true;
+        return;
+    }
+    saving.value = true;
+    try {
+        await DatabaseService.UpdateConnection(parseToConfig());
+        await store.getConnections();
+        Notify.create({ message: "Connection updated", color: "positive" });
+        await cancelEdit();
+    } catch (error: any) {
+        Notify.create({ message: error?.message || "Failed to update connection", color: "negative" });
+    } finally { saving.value = false; }
+}
+watch(editingId, loadSavedConnection);
+onMounted(async () => {
+    if (editingId.value) await loadSavedConnection();
+    else await store.getConnections();
 });
 </script>

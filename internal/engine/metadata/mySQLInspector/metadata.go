@@ -6,10 +6,11 @@ import (
 	manager "db-viewer/internal/engine/connectionManager"
 	"db-viewer/internal/engine/entities"
 	"fmt"
+	"strings"
+	// "log"
 )
 
-
-type MySQLInspector struct {}
+type MySQLInspector struct{}
 
 func NewInspector() *MySQLInspector {
 	return &MySQLInspector{}
@@ -28,7 +29,7 @@ func (m *MySQLInspector) ListDatabases(ctx context.Context, conn manager.Connect
 	defer rows.Close()
 	var results []entities.DatabaseInfo
 
-	for rows.Next(){
+	for rows.Next() {
 		var name string
 		rows.Scan(&name)
 		results = append(results, entities.DatabaseInfo{Name: name})
@@ -36,12 +37,11 @@ func (m *MySQLInspector) ListDatabases(ctx context.Context, conn manager.Connect
 	return results, nil
 }
 
-func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection)([]entities.InspectTableInfo, error) {
+func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection) ([]entities.InspectTableInfo, error) {
 	sqlConn, ok := conn.(manager.SQLConnection)
 	if !ok {
 		return nil, fmt.Errorf("connection is not SQL")
 	}
-
 
 	query := `
 		SELECT
@@ -68,7 +68,7 @@ func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection
 
 	for rows.Next() {
 
-		var table entities.InspectTableInfo 
+		var table entities.InspectTableInfo
 		var (
 			engine  sql.NullString
 			comment sql.NullString
@@ -114,7 +114,6 @@ func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection
 			table.UpdatedAt = &updated.Time
 		}
 
-
 		tables = append(tables, table)
 
 	}
@@ -125,7 +124,6 @@ func (m *MySQLInspector) ListTables(ctx context.Context, conn manager.Connection
 
 	return tables, nil
 }
-
 
 func (i *MySQLInspector) ListColumns(
 	ctx context.Context,
@@ -191,13 +189,13 @@ func (i *MySQLInspector) ListColumns(
 			return nil, err
 		}
 
-
 		col.Nullable = isNullable == "YES"
 
 		col.PrimaryKey = columnKey == "PRI"
 
 		col.AutoIncrement =
-			extra == "auto_increment"
+			strings.Contains(extra, "auto_increment")
+		col.Generated = strings.Contains(extra, "VIRTUAL GENERATED") || strings.Contains(extra, "STORED GENERATED")
 
 		columns = append(columns, col)
 	}

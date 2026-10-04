@@ -1,0 +1,140 @@
+name: Release Linux AppImage
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Manual runs must select an existing version tag, not a branch.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      CGO_ENABLED: '1'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      RELEASE_TAG: ${{ github.ref_name }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate version tag
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo 'Use a version tag such as v0.1.0 or v0.1.0-beta.1.' >&2
+            exit 1
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux build and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
+            librsvg2-common patchelf file curl wget
+
+      - name: Install the project's Wails CLI version
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install -tags gtk3 "github.com/wailsapp/wails/v3/cmd/wails3@$wails_version"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Run backend tests
+        run: go test -tags gtk3 ./internal/...
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate frontend bindings
+        run: wails3 generate bindings -f '-tags production,gtk3' -ts -i
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build Linux executable
+        # GTK3 allows an Ubuntu 22.04 baseline for wider glibc compatibility.
+        run: |
+          mkdir -p bin
+          go build -tags production,gtk3 -trimpath -buildvcs=false \
+            -ldflags='-w -s' -o bin/db-viewer .
+          file bin/db-viewer
+          if ldd bin/db-viewer | grep -q 'not found'; then
+            echo 'The executable has missing shared libraries.' >&2
+            exit 1
+          fi
+
+      - name: Package AppImage
+        run: |
+          mkdir -p dist
+          wails3 generate .desktop -name db-viewer -exec db-viewer \
+            -icon db-viewer -outputfile bin/db-viewer.desktop -categories 'Development;'
+          wails3 generate appimage -binary bin/db-viewer -icon build/linux/appimage/db-viewer.png \
+            -desktopfile bin/db-viewer.desktop -outputdir bin \
+            -builddir "$RUNNER_TEMP/db-viewer-appimage"
+          install -m 755 bin/db-viewer-x86_64.AppImage \
+            "dist/db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage"
+
+      - name: Verify package and create checksums
+        working-directory: dist
+        run: |
+          appimage="db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage"
+          test -s "$appimage"
+          "./$appimage" --appimage-extract > /dev/null
+          test -x squashfs-root/AppRun
+          test -x squashfs-root/usr/bin/db-viewer
+          sha256sum "$appimage" > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          prerelease=false
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            prerelease=true
+          fi
+          if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release.json" 2>/dev/null; then
+            if [[ "$(jq -r .isDraft "$RUNNER_TEMP/release.json")" != true ]]; then
+              echo "Release $RELEASE_TAG is already published; use a new version tag for new builds."
+              exit 0
+            fi
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "DB Viewer $RELEASE_TAG" --generate-notes \
+              --prerelease="$prerelease"
+          fi
+          # Upload everything before publishing, including for immutable releases.
+          gh release upload "$RELEASE_TAG" \
+            "dist/db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage" dist/SHA256SUMS --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease"

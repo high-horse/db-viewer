@@ -1,5 +1,33 @@
 <template>
-    <div class="relative h-full w-full overflow-hidden bg-[#100e0c]">
+    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#100e0c]">
+        <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyFilter">
+            <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
+            <div class="result-filter-input" :class="{ 'has-error': filterError }">
+                <span class="text-gray-500 select-none">WHERE</span>
+                <q-input borderless dense dark hide-bottom-space class="filter-expression" input-class="font-mono text-[11px]" v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
+                <q-icon v-if="filterError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ filterError }}</q-tooltip></q-icon>
+            </div>
+            <q-btn flat dense no-caps type="submit" class="filter-action" :disable="loading || editState?.saving" title="Apply filter (Enter)" aria-label="Apply filter"><q-icon name="play_arrow" size="16px" /></q-btn>
+            <q-btn flat dense no-caps type="button" class="filter-action" :disable="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></q-btn>
+            <q-btn flat dense no-caps type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
+                <q-icon name="help_outline" size="15px" />
+                <q-menu class="border border-[#292521] bg-[#161310] text-gray-300">
+                    <div class="max-w-sm p-3 font-mono text-[11px] leading-6">
+                        <div class="text-amber-400">Combine conditions with AND / OR</div>
+                        <div>age &gt;= 18 AND status = 'active'</div>
+                        <div>(name LIKE 'A%' OR name LIKE 'B%')</div>
+                        <div>status IN ('active', 'pending')</div>
+                        <div>deleted_at IS NULL</div>
+                        <div class="mt-2 text-gray-500">Use double quotes for column names with spaces.<br />Enter to apply · Esc to reset · Current page only<br />Sorting with a filter orders matching rows on this page.</div>
+                        <div class="mt-2 text-gray-500">Columns: {{ result.Columns.map(column => column.Name).join(', ') }}</div>
+                    </div>
+                </q-menu>
+            </q-btn>
+            <span class="filter-count">{{ filteredRows.length }}/{{ workingRows.length }} <span class="filter-scope">on this page</span></span>
+        </q-form>
+
+        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :loading="loading" />
+
         <!-- =========================================================
              TABLE
              ========================================================= -->
@@ -9,17 +37,18 @@
             square
             dense
             dark
-            :rows="paginatedRows"
+            :rows="mappedRows"
             :columns="mappedColumns"
             row-key="id"
             :pagination="{
-                rowsPerPage: rowsPerPage,
+                rowsPerPage: 0,
             }"
             :virtual-scroll-item-size="28"
-            class="absolute inset-0 data-explorer-grid bg-transparent"
+            class="data-explorer-grid bg-transparent"
+            :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
             table-class="table-fixed"
-            table-style="min-width: 100%; width: max-content;"
-            hide-pagination
+            :style="{ '--result-table-width': `${tableWidth}px`, '--row-number-width': `${snColumnWidth}px` }"
+            hide-bottom
         >
             <!-- =====================================================
                  HEADER
@@ -33,10 +62,15 @@
                         :props="props"
                         class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#292521] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
                         :class="{
+                            'cursor-pointer': col.name !== 'sn' && (result.CanSort ?? result.CanNavigate),
                             'sticky-col-header pl-2 pr-1 text-left font-normal text-[#4b5563]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
+                        :tabindex="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate) ? 0 : undefined"
+                        :aria-sort="activeSortColumn === col.name ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                        @click="toggleSort(col.name)"
+                        @keydown.enter.prevent="toggleSort(col.name)"
                     >
                         <div
                             class="flex w-full min-w-0 items-center overflow-hidden whitespace-nowrap"
@@ -62,9 +96,9 @@
 
                             <!-- Sort indicator -->
                             <q-icon
-                                v-if="activeSortColumn === col.name"
+                                v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                                 :name="
-                                    sortDirection === 'asc'
+                                    activeSortColumn !== col.name ? 'unfold_more' : sortDirection === 'asc'
                                         ? 'arrow_upward'
                                         : 'arrow_downward'
                                 "
@@ -77,7 +111,11 @@
                         <span
                             v-if="col.name !== 'sn'"
                             class="column-resizer"
-                            @mousedown.stop="startResize($event, col.name)"
+                            role="separator"
+                            aria-orientation="vertical"
+                            :aria-label="`Resize ${col.label}`"
+                            @pointerdown.stop.prevent="startResize($event, col.name)"
+                            @click.stop
                         />
 
                         <!-- Column tooltip -->
@@ -105,7 +143,7 @@
 
                         <!-- Context menu -->
                         <q-menu
-                            v-if="col.name !== 'sn'"
+                            v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                             context-menu
                             class="min-w-[150px] border border-[#292521] bg-[#1c1916] text-gray-300 shadow-xl"
                         >
@@ -115,6 +153,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="sortColumn(col.name, 'asc')"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -127,7 +166,7 @@
 
                                 <q-item-section>
                                     <q-item-label class="font-mono text-[11px]">
-                                        Sort Ascending
+                                        Sort ascending
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
@@ -138,6 +177,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="sortColumn(col.name, 'desc')"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -150,7 +190,7 @@
 
                                 <q-item-section>
                                     <q-item-label class="font-mono text-[11px]">
-                                        Sort Descending
+                                        Sort descending
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
@@ -164,6 +204,7 @@
                                 v-close-popup
                                 dense
                                 class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                :disable="loading"
                                 @click="clearSort"
                             >
                                 <q-item-section avatar class="min-w-[24px]">
@@ -193,6 +234,8 @@
                 <q-tr
                     :props="props"
                     class="bg-[#100e0c] even:bg-[#13110f] hover:!bg-[#231f1a]"
+                    :class="{ 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
+                    @click="selectedRowKey = props.row._editKey || ''"
                 >
                     <q-td
                         v-for="col in props.cols"
@@ -204,14 +247,15 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
+                        @click="col.name !== 'sn' && ($event.detail === 3 && isMongoResult ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
+                        <!-- @dblclick="tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : inspectDocument(props.row[col.field], col.Type)" -->
+
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
-                            <span class="text-grey-8">
+                            <span class="row-number">
                                 {{
-                                    (currentPage - 1) * rowsPerPage +
-                                    props.rowIndex +
-                                    1
+                                    props.row._rowNumber
                                 }}
                             </span>
                         </template>
@@ -230,6 +274,18 @@
             </template>
         </q-table>
 
+        <q-dialog v-model="documentDialog">
+            <q-card class="bg-[#161310] text-gray-300" style="width: 800px; max-width: 90vw">
+                <q-card-section class="flex items-center justify-between">
+                    <span>MongoDB document</span>
+                    <q-btn flat round dense icon="close" v-close-popup />
+                </q-card-section>
+                <q-card-section style="max-height: 70vh; overflow: auto">
+                    <pre class="text-xs font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
+                </q-card-section>
+            </q-card>
+        </q-dialog>
+
         <!-- =========================================================
              FIXED BOTTOM TOOLBAR
              ========================================================= -->
@@ -239,90 +295,58 @@
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
-                <!-- Refresh -->
-                <button
-                    type="button"
-                    class="flex h-[24px] w-[24px] items-center justify-center rounded text-gray-500 transition-colors hover:bg-[#292521] hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
-                    :disabled="isRefreshing"
-                    title="Refresh"
-                    @click="refresh"
-                >
-                    <q-icon
-                        name="refresh"
-                        size="16px"
-                        :class="{ 'animate-spin': isRefreshing }"
-                    />
-                </button>
-
-                <span class="font-mono text-[10px] text-gray-600">
-                    {{ totalRows }} rows
+                <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked"
+                    title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
+                    <q-icon name="refresh" size="16px" />
+                </q-btn>
+                <span class="font-mono text-[10px] text-gray-500">
+                    <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
+                    <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
+                    <span v-if="result.IsQuery"> · {{ totalRows == null ? 'Total unknown' : `${totalRows} rows total` }}</span>
                 </span>
             </div>
-
-            <!-- Right side pagination -->
-            <div class="flex items-center gap-1">
-                <!-- First page -->
-                <button
-                    type="button"
-                    class="pagination-button"
-                    :disabled="currentPage === 1"
-                    title="First page"
-                    @click="goToFirstPage"
-                >
+            <div v-if="result.IsQuery" class="flex items-center gap-1">
+                <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked || !canFirst"
+                    title="Go to first page" aria-label="Go to first page" @click="emit('first')">
                     <q-icon name="first_page" size="16px" />
-                </button>
-
+                </q-btn>
                 <!-- Previous -->
-                <button
+                <q-btn flat dense no-caps
                     type="button"
                     class="pagination-button"
-                    :disabled="currentPage === 1"
-                    title="Previous page"
-                    @click="previousPage"
+                    :disable="loading || navigationBlocked || !canPrevious"
+                    :title="result.CanNavigate ? 'Previous page' : 'Previous cached page'"
+                    @click="emit('previous')"
                 >
                     <q-icon name="chevron_left" size="16px" />
-                </button>
+                </q-btn>
 
                 <!-- Page -->
                 <div
                     class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#292521] bg-[#100e0c] px-2 font-mono text-[10px] text-gray-400"
                 >
-                    Page {{ currentPage }} / {{ totalPages }}
+                    Page {{ currentPage }} of {{ totalPages ?? '…' }}
                 </div>
 
                 <!-- Next -->
-                <button
+                <q-btn flat dense no-caps
                     type="button"
                     class="pagination-button"
-                    :disabled="currentPage >= totalPages"
+                    :disable="loading || navigationBlocked || !canNext"
                     title="Next page"
-                    @click="nextPage"
+                    @click="emit('next')"
                 >
                     <q-icon name="chevron_right" size="16px" />
-                </button>
+                </q-btn>
 
-                <!-- Last page -->
-                <button
-                    type="button"
-                    class="pagination-button"
-                    :disabled="currentPage >= totalPages"
-                    title="Last page"
-                    @click="goToLastPage"
-                >
+                <q-btn flat dense no-caps type="button" class="pagination-button"
+                    :disable="loading || navigationBlocked || !canLast"
+                    :title="result.CanNavigate ? 'Go directly to last page' : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
-                </button>
-
-                <!-- Rows per page -->
-                <select
-                    v-model.number="rowsPerPage"
-                    class="ml-2 h-[24px] border border-[#292521] bg-[#100e0c] px-1 font-mono text-[10px] text-gray-400 outline-none"
-                >
-                    <option :value="25">25</option>
-                    <option :value="50">50</option>
-                    <option :value="100">100</option>
-                    <option :value="250">250</option>
-                    <option :value="500">500</option>
-                </select>
+                </q-btn>
+                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
+                    @click="emit('stop')">Stop fetching</q-btn>
+                <span class="ml-2 font-mono text-[10px] text-gray-500">{{ result.PageSize }} rows/page</span>
             </div>
         </div>
     </div>
@@ -341,18 +365,62 @@ import {
 
 import type { QTableColumn } from "quasar";
 
+import TableDataEditor from "./TableDataEditor.vue";
+import { useTableEditsStore } from "@/stores/tableEditsStore";
 import type { QueryResult } from "@/types/queryTab";
+import { compileResultFilter } from "@/utils/resultFilter";
+import { sortResultRows } from "@/utils/resultSort";
+
+const documentDialog = ref(false);
+const selectedDocument = ref("");
+function inspectDocument(value: unknown, type?: string) {
+    if (typeof value === "string") {
+        if (type === "string") selectedDocument.value = value;
+        else {
+            try { selectedDocument.value = JSON.stringify(JSON.parse(value), null, 2); }
+            catch { selectedDocument.value = value; }
+        }
+    } else {
+        selectedDocument.value = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
+    }
+    documentDialog.value = true;
+}
+
+const tableEdits = useTableEditsStore();
+const editState = computed(() => props.tableTabId ? tableEdits.states[props.tableTabId] : undefined);
+const isMongoResult = computed(() => props.result.Documents !== undefined
+    || editState.value?.info?.driver === "mongodb"
+    || props.result.Columns.some(column => column.Type === "Extended JSON"));
+const navigationBlocked = computed(() => !!editState.value?.drafts.length || !!editState.value?.saving);
+const selectedRowKey = ref("");
+const rowEditor = ref<InstanceType<typeof TableDataEditor> | null>(null);
 
 const MIN_COLUMN_WIDTH = 60;
-const SN_COLUMN_WIDTH = 45;
+const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * 8 + 24));
 const HEADER_EXTRA_WIDTH = 24;
 
 const props = defineProps<{
     result: QueryResult;
+    tableTabId?: string;
+    loading?: boolean;
+    canFirst?: boolean;
+    canPrevious?: boolean;
+    canNext?: boolean;
+    canLast?: boolean;
+    totalRows?: number;
+    fetchingLast?: boolean;
+    sortColumn?: number;
+    sortDirection?: "asc" | "desc";
 }>();
 
 const emit = defineEmits<{
+    first: [];
+    previous: [];
+    next: [];
+    last: [];
+    stop: [];
     refresh: [];
+    sort: [column: number, direction?: "asc" | "desc"];
 }>();
 
 /* =========================================================
@@ -360,10 +428,15 @@ const emit = defineEmits<{
    ========================================================= */
 
 const columnWidths = reactive<Record<string, number>>({});
+const gridElement = ref<HTMLElement | null>(null);
+const tableWidth = computed(() => snColumnWidth.value + props.result.Columns.reduce(
+    (width, _column, index) => width + getColumnWidth(`column-${index}`), 0,
+));
+const totalPages = computed(() => props.totalRows == null ? undefined : Math.max(1, Math.ceil(props.totalRows / props.result.PageSize)));
 
 const getColumnWidth = (columnName: string): number => {
     if (columnName === "sn") {
-        return SN_COLUMN_WIDTH;
+        return snColumnWidth.value;
     }
 
     return columnWidths[columnName] ?? MIN_COLUMN_WIDTH;
@@ -402,7 +475,7 @@ const measureHeaderWidths = async () => {
         requestAnimationFrame(() => resolve());
     });
 
-    const table = document.querySelector(
+    const table = gridElement.value?.querySelector(
         ".data-explorer-grid table",
     );
 
@@ -424,7 +497,7 @@ const measureHeaderWidths = async () => {
             return;
         }
 
-        if (columnWidths[column.Name] !== undefined) {
+        if (columnWidths[`column-${index - 1}`] !== undefined) {
             return;
         }
 
@@ -467,7 +540,7 @@ const measureHeaderWidths = async () => {
             contentWidth + HEADER_EXTRA_WIDTH,
         );
 
-        columnWidths[column.Name] = width;
+        columnWidths[`column-${index - 1}`] = width;
     });
 };
 
@@ -491,7 +564,7 @@ const columnSignature = computed(() =>
 watch(columnSignature, async () => {
     const validColumns = new Set(
         props.result.Columns.map(
-            (column) => column.Name,
+            (_column, index) => `column-${index}`,
         ),
     );
 
@@ -503,7 +576,7 @@ watch(columnSignature, async () => {
         },
     );
 
-    currentPage.value = 1;
+
 
     await nextTick();
 
@@ -519,11 +592,15 @@ let resizingColumn: string | null = null;
 let resizeStartX = 0;
 
 let resizeStartWidth = 0;
+let resizeHandle: HTMLElement | null = null;
+let resizePointerId: number | null = null;
 
 const startResize = (
-    event: MouseEvent,
+    event: PointerEvent,
     columnName: string,
 ) => {
+    if (event.button !== 0) return;
+    stopResize();
     event.preventDefault();
     event.stopPropagation();
 
@@ -533,6 +610,9 @@ const startResize = (
 
     const target =
         event.currentTarget as HTMLElement;
+    resizeHandle = target;
+    resizePointerId = event.pointerId;
+    target.setPointerCapture(event.pointerId);
 
     const header =
         target.closest("th") as HTMLElement | null;
@@ -549,18 +629,21 @@ const startResize = (
     );
 
     document.addEventListener(
-        "mousemove",
+        "pointermove",
         handleResize,
     );
 
     document.addEventListener(
-        "mouseup",
+        "pointerup",
         stopResize,
     );
+    document.addEventListener("pointercancel", stopResize);
+    target.addEventListener("lostpointercapture", stopResize);
+    window.addEventListener("blur", stopResize);
 };
 
-const handleResize = (event: MouseEvent) => {
-    if (!resizingColumn) {
+const handleResize = (event: PointerEvent) => {
+    if (!resizingColumn || event.pointerId !== resizePointerId) {
         return;
     }
 
@@ -577,6 +660,14 @@ const handleResize = (event: MouseEvent) => {
 };
 
 const stopResize = () => {
+    if (resizeHandle && resizePointerId !== null) {
+        resizeHandle.removeEventListener("lostpointercapture", stopResize);
+        if (resizeHandle.hasPointerCapture(resizePointerId)) {
+            resizeHandle.releasePointerCapture(resizePointerId);
+        }
+    }
+    resizeHandle = null;
+    resizePointerId = null;
     resizingColumn = null;
 
     document.body.classList.remove(
@@ -584,14 +675,16 @@ const stopResize = () => {
     );
 
     document.removeEventListener(
-        "mousemove",
+        "pointermove",
         handleResize,
     );
 
     document.removeEventListener(
-        "mouseup",
+        "pointerup",
         stopResize,
     );
+    document.removeEventListener("pointercancel", stopResize);
+    window.removeEventListener("blur", stopResize);
 };
 
 onBeforeUnmount(() => {
@@ -602,278 +695,110 @@ onBeforeUnmount(() => {
    SORTING
    ========================================================= */
 
-type SortDirection =
-    | "asc"
-    | "desc"
-    | null;
+const pageSort = ref<{ column: number; direction?: "asc" | "desc" } | null>(null);
+const effectiveSort = computed(() => (appliedFilter.value || navigationBlocked.value) && pageSort.value
+    ? pageSort.value : { column: props.sortColumn ?? 0, direction: props.sortDirection });
+const activeSortColumn = computed(() => effectiveSort.value.column ? `column-${effectiveSort.value.column - 1}` : null);
+const sortDirection = computed(() => effectiveSort.value.direction ?? null);
 
-const activeSortColumn =
-    ref<string | null>(null);
-
-const sortDirection =
-    ref<SortDirection>(null);
-
-const sortColumn = (
-    columnName: string,
-    direction: "asc" | "desc",
-) => {
-    activeSortColumn.value =
-        columnName;
-
-    sortDirection.value =
-        direction;
-
-    currentPage.value = 1;
-};
-
-const clearSort = () => {
-    activeSortColumn.value = null;
-
-    sortDirection.value = null;
-
-    currentPage.value = 1;
-};
-
-/* =========================================================
-   ROW MAPPING
-   ========================================================= */
-
-const mappedRows = computed(() => {
-    const rows =
-        props.result.Rows.map(
-            (row, rowIndex) => {
-                const rowObject =
-                    {
-                        id: rowIndex,
-                    } as Record<
-                        string,
-                        unknown
-                    >;
-
-                props.result.Columns.forEach(
-                    (
-                        column,
-                        columnIndex,
-                    ) => {
-                        rowObject[
-                            column.Name
-                        ] =
-                            row[
-                                columnIndex
-                            ];
-                    },
-                );
-
-                return rowObject;
-            },
-        );
-
-    if (
-        !activeSortColumn.value ||
-        !sortDirection.value
-    ) {
-        return rows;
+const sortColumn = (columnName: string, direction: "asc" | "desc") => {
+    if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate) || columnName === "sn") return;
+    const column = Number(columnName.slice(7)) + 1;
+    if (appliedFilter.value || navigationBlocked.value) {
+        pageSort.value = { column, direction };
+        return;
     }
+    emit("sort", column, direction);
+};
+const clearSort = () => {
+    if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
+    if (appliedFilter.value || navigationBlocked.value) pageSort.value = { column: 0 };
+    else emit("sort", 0);
+};
+const toggleSort = (columnName: string) => {
+    if (columnName === "sn" || props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
+    if (activeSortColumn.value !== columnName) sortColumn(columnName, "asc");
+    else if (sortDirection.value === "asc") sortColumn(columnName, "desc");
+    else clearSort();
+};
 
-    const column =
-        activeSortColumn.value;
-
-    const direction =
-        sortDirection.value === "asc"
-            ? 1
-            : -1;
-
-    return [...rows].sort(
-        (a, b) => {
-            const valueA =
-                a[column];
-
-            const valueB =
-                b[column];
-
-            if (
-                valueA === null ||
-                valueA === undefined
-            ) {
-                if (
-                    valueB === null ||
-                    valueB === undefined
-                ) {
-                    return 0;
-                }
-
-                return -1 * direction;
-            }
-
-            if (
-                valueB === null ||
-                valueB === undefined
-            ) {
-                return 1 * direction;
-            }
-
-            if (
-                typeof valueA ===
-                    "number" &&
-                typeof valueB ===
-                    "number"
-            ) {
-                return (
-                    (valueA - valueB) *
-                    direction
-                );
-            }
-
-            const stringA =
-                String(valueA);
-
-            const stringB =
-                String(valueB);
-
-            const numberA =
-                Number(stringA);
-
-            const numberB =
-                Number(stringB);
-
-            if (
-                stringA.trim() !== "" &&
-                stringB.trim() !== "" &&
-                Number.isFinite(
-                    numberA,
-                ) &&
-                Number.isFinite(
-                    numberB,
-                )
-            ) {
-                return (
-                    (numberA - numberB) *
-                    direction
-                );
-            }
-
-            return (
-                stringA.localeCompare(
-                    stringB,
-                    undefined,
-                    {
-                        numeric: true,
-                        sensitivity:
-                            "base",
-                    },
-                ) * direction
-            );
-        },
-    );
+const filterDraft = ref("");
+const appliedFilter = ref("");
+const filterError = ref("");
+const filterPredicate = computed(() => {
+    try { return compileResultFilter(appliedFilter.value, props.result.Columns.map(column => column.Name)); }
+    catch { return null; }
 });
+function applyFilter() {
+    try {
+        const predicate = compileResultFilter(filterDraft.value, props.result.Columns.map(column => column.Name));
+        props.result.Rows.forEach(row => predicate(row));
+        appliedFilter.value = filterDraft.value.trim();
+        if (!appliedFilter.value) pageSort.value = null;
+        filterError.value = "";
+    } catch (error) {
+        filterError.value = error instanceof Error ? error.message : String(error);
+    }
+}
+function clearFilter() {
+    filterDraft.value = "";
+    appliedFilter.value = "";
+    pageSort.value = null;
+    filterError.value = "";
+}
+watch(() => props.result, () => {
+    try {
+        const predicate = compileResultFilter(appliedFilter.value, props.result.Columns.map(column => column.Name));
+        props.result.Rows.forEach(row => predicate(row));
+        filterError.value = "";
+    } catch (error) {
+        filterError.value = error instanceof Error ? error.message : String(error);
+    }
+});
+const workingRows = computed(() => {
+    const drafts = editState.value?.drafts ?? [];
+    const rows = props.result.Rows.map((original, index) => {
+        const key = props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index);
+        const draft = drafts.find(draft => draft.key === key);
+        const row = props.result.Columns.map((column, col) => {
+            const value = draft && Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : original[col];
+            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
+        });
+        return { row, index, key, status: draft?.operation ?? '', number: String(props.result.StartRow + index) };
+    });
+    for (const draft of drafts.filter(draft => !rows.some(row => row.key === draft.key))) {
+        rows.push({ row: props.result.Columns.map(column => {
+            const value = Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : draft.original?.[column.Name];
+            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
+        }), index: rows.length, key: draft.key, status: draft.operation, number: draft.operation === 'insert' ? 'New' : 'Pending' });
+    }
+    return rows;
+});
+const filteredRows = computed(() => {
+    const rows = workingRows.value.filter(({ row, status }) => {
+        // Pending changes remain visible until saved or canceled.
+        if (status) return true;
+        try { return filterPredicate.value?.(row) ?? true; }
+        catch { return true; }
+    });
+    return (appliedFilter.value || navigationBlocked.value) && pageSort.value
+        ? sortResultRows(rows, pageSort.value.column, pageSort.value.direction)
+        : rows;
+});
+
+// Stable row identities preserve selection while values are staged or sorted.
+const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, number }) => {
+    const mapped: Record<string, unknown> = { id: key, _editKey: key, _status: status, _rowNumber: number };
+    row.forEach((value, column) => { mapped[`column-${column}`] = value; });
+    return mapped;
+}));
 
 /* =========================================================
    PAGINATION
    ========================================================= */
 
-const rowsPerPage = ref(100);
-
-const currentPage = ref(1);
-
-const totalRows = computed(
-    () => mappedRows.value.length,
-);
-
-const totalPages = computed(() =>
-    Math.max(
-        1,
-        Math.ceil(
-            totalRows.value /
-                rowsPerPage.value,
-        ),
-    ),
-);
-
-const paginatedRows = computed(() => {
-    const start =
-        (currentPage.value - 1) *
-        rowsPerPage.value;
-
-    const end =
-        start + rowsPerPage.value;
-
-    return mappedRows.value.slice(
-        start,
-        end,
-    );
-});
-
-const goToFirstPage = () => {
-    currentPage.value = 1;
-};
-
-const goToLastPage = () => {
-    currentPage.value =
-        totalPages.value;
-};
-
-const previousPage = () => {
-    if (currentPage.value > 1) {
-        currentPage.value--;
-    }
-};
-
-const nextPage = () => {
-    if (
-        currentPage.value <
-        totalPages.value
-    ) {
-        currentPage.value++;
-    }
-};
-
-/*
- * When rows-per-page changes, return
- * to the first page.
- */
-watch(rowsPerPage, () => {
-    currentPage.value = 1;
-});
-
-/*
- * Prevent current page from becoming
- * invalid after result data changes.
- */
-watch(totalPages, (pages) => {
-    if (currentPage.value > pages) {
-        currentPage.value = pages;
-    }
-});
-
-/* =========================================================
-   REFRESH
-   ========================================================= */
-
-const isRefreshing = ref(false);
-
-const refresh = async () => {
-    if (isRefreshing.value) {
-        return;
-    }
-
-    isRefreshing.value = true;
-
-    try {
-        emit("refresh");
-    } finally {
-        /*
-         * Small delay so the refresh indicator
-         * is visible even for very fast requests.
-         */
-        await new Promise<void>(
-            (resolve) => {
-                setTimeout(resolve, 300);
-            },
-        );
-
-        isRefreshing.value = false;
-    }
-};
+const rowOffset = computed(() => Math.max(0, props.result.StartRow - 1));
+const currentPage = computed(() => Math.floor(rowOffset.value / props.result.PageSize) + 1);
 
 /* =========================================================
    COLUMNS
@@ -894,31 +819,32 @@ const mappedColumns =
                 sortable: false,
 
                 style: `
-                    width: ${SN_COLUMN_WIDTH}px;
-                    min-width: ${SN_COLUMN_WIDTH}px;
-                    max-width: ${SN_COLUMN_WIDTH}px;
+                    width: ${snColumnWidth.value}px;
+                    min-width: ${snColumnWidth.value}px;
+                    max-width: ${snColumnWidth.value}px;
                 `,
 
                 headerStyle: `
-                    width: ${SN_COLUMN_WIDTH}px;
-                    min-width: ${SN_COLUMN_WIDTH}px;
-                    max-width: ${SN_COLUMN_WIDTH}px;
+                    width: ${snColumnWidth.value}px;
+                    min-width: ${snColumnWidth.value}px;
+                    max-width: ${snColumnWidth.value}px;
                 `,
             },
 
             ...props.result.Columns.map(
-                (column) => {
+                (column, index) => {
+                    const key = `column-${index}`;
                     const width =
                         getColumnWidth(
-                            column.Name,
+                            key,
                         );
 
                     return {
-                        name: column.Name,
+                        name: key,
 
                         label: column.Name,
 
-                        field: column.Name,
+                        field: key,
 
                         align: "left" as const,
 
@@ -951,6 +877,51 @@ const mappedColumns =
 </script>
 
 <style scoped>
+.result-filter-bar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    background: #161310;
+    border-bottom: 1px solid #292521;
+    font-family: monospace;
+    font-size: 11px;
+}
+.result-filter-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    height: 25px;
+    padding: 0 8px;
+    border: 1px solid #292521;
+    background: #100e0c;
+}
+.result-filter-input:focus-within { border-color: #a97724; }
+.result-filter-input.has-error { border-color: #b45353; }
+.filter-expression { flex: 1; min-width: 0; }
+.filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
+.filter-expression :deep(.q-field__native) { padding: 0; color: #d1d5db; }
+.filter-expression :deep(input::placeholder) { color: #6b7280; }
+.filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: #292521; border-color: #40382e; }
+.filter-action.disabled { opacity: .3; cursor: default; }
+.filter-count { color: #6b7280; white-space: nowrap; padding-left: 6px; }
+@media (max-width: 600px) { .filter-scope { display: none; } }
+
+.row-number {
+    display: block;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
 /* =========================================================
    RESIZE HANDLE
    ========================================================= */
@@ -965,6 +936,8 @@ const mappedColumns =
     width: 8px;
 
     cursor: col-resize;
+    touch-action: none;
+    user-select: none;
 
     z-index: 70;
 }
@@ -980,7 +953,7 @@ const mappedColumns =
 
     width: 1px;
 
-    background: transparent;
+    background: #3a342e;
 
     transition:
         background-color 80ms ease,
@@ -1013,6 +986,23 @@ const mappedColumns =
    QTABLE CONTAINER
    ========================================================= */
 
+.data-explorer-grid {
+    position: absolute;
+    inset: 0 0 36px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.data-explorer-grid.has-edit-toolbar { top: 70px !important; }
+.selected-edit-row :deep(td) { box-shadow: inset 0 1px #70572d, inset 0 -1px #70572d; }
+.pending-insert :deep(td) { background: #12281f !important; }
+.pending-update :deep(td) { background: #2b2415 !important; }
+.pending-delete :deep(td) { background: #321c1c !important; text-decoration: line-through; opacity: .65; }
+
+.data-explorer-grid.has-filter-toolbar {
+    top: 36px;
+}
+
 .data-explorer-grid :deep(.q-table__card),
 .data-explorer-grid :deep(.q-table__container) {
     background: transparent !important;
@@ -1023,10 +1013,9 @@ const mappedColumns =
 .data-explorer-grid :deep(.q-table__middle) {
     background: #100e0c;
 
-    /*
-     * Leave room for the fixed footer.
-     */
-    padding-bottom: 36px;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
 
     overflow: auto;
 
@@ -1043,10 +1032,10 @@ const mappedColumns =
 
 .data-explorer-grid :deep(table) {
     table-layout: fixed;
+    width: var(--result-table-width);
+    min-width: var(--result-table-width);
+    max-width: var(--result-table-width);
 
-    width: max-content;
-
-    min-width: 100%;
 }
 
 /* =========================================================
@@ -1101,6 +1090,8 @@ const mappedColumns =
    ========================================================= */
 
 .data-explorer-grid :deep(thead th:first-child) {
+    padding-left: 8px;
+    padding-right: 8px;
     position: sticky;
 
     left: 0;
@@ -1109,11 +1100,11 @@ const mappedColumns =
 
     z-index: 60;
 
-    width: 45px;
+    width: var(--row-number-width);
 
-    min-width: 45px;
+    min-width: var(--row-number-width);
 
-    max-width: 45px;
+    max-width: var(--row-number-width);
 
     background: #161310;
 
@@ -1125,19 +1116,22 @@ const mappedColumns =
    ========================================================= */
 
 .data-explorer-grid :deep(tbody td:first-child) {
+    padding-left: 8px;
+    padding-right: 8px;
     position: sticky;
 
     left: 0;
 
     z-index: 20;
 
-    width: 45px;
+    width: var(--row-number-width);
 
-    min-width: 45px;
+    min-width: var(--row-number-width);
 
-    max-width: 45px;
+    max-width: var(--row-number-width);
 
-    overflow: hidden;
+    overflow: visible;
+    text-overflow: clip;
 
     background: #100e0c;
 
@@ -1264,6 +1258,8 @@ const mappedColumns =
    ========================================================= */
 
 .pagination-button {
+    min-height: 24px;
+    padding: 0;
     display: flex;
 
     height: 24px;
@@ -1287,7 +1283,7 @@ const mappedColumns =
 }
 
 .pagination-button:hover:not(
-        :disabled
+        .disabled
     ) {
     background: #292521;
 
@@ -1296,7 +1292,7 @@ const mappedColumns =
     color: #f59e0b;
 }
 
-.pagination-button:disabled {
+.pagination-button.disabled {
     cursor: not-allowed;
 
     opacity: 0.3;

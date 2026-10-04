@@ -31,6 +31,9 @@ func TestSQLiteParser(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse failed: %v", err)
 			}
+			if result.RawSQL != tt.sql {
+				t.Errorf("parser changed SQL: got %q, want %q", result.RawSQL, tt.sql)
+			}
 			if result.StatementType != tt.want {
 				t.Errorf("got %v, want %v", result.StatementType, tt.want)
 			}

@@ -6,17 +6,15 @@ import (
 	"db-viewer/internal/engine/entities"
 )
 
-
 type Inspector interface {
 	ListDatabases(ctx context.Context, conn manager.Connection) ([]entities.DatabaseInfo, error)
-
-	ListTables(ctx context.Context, conn manager.Connection)([]entities.InspectTableInfo, error)
-
-	ListColumns (ctx context.Context, conn manager.Connection, table entities.InspectTableInfo) ([]entities.InspectColumnInfo, error)
+	ListTables(ctx context.Context, conn manager.Connection) ([]entities.InspectTableInfo, error)
+	ListColumns(ctx context.Context, conn manager.Connection, table entities.InspectTableInfo) ([]entities.InspectColumnInfo, error)
+	GetTableDDL(ctx context.Context, conn manager.Connection, table entities.TableRef) (string, error)
 
 	// TODO: for later
 	// ListIndexes()
 	// ListForeignKeys()
-	// ListViews()	
+	// ListViews()
 	// ListProcedures()
 }

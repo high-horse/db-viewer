@@ -27,6 +27,7 @@
                 v-if="activeTab"
                 class="flex items-center gap-2 text-[10px] text-[#4b4540]"
             >
+                <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
                 <span>Ctrl + Enter</span>
                 <span>Run</span>
 
@@ -51,7 +52,10 @@
             </div>
         </div>
 
-        <!-- SQL Editor -->
+        <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#292521]">
+            Example: {"find":"users","filter":{},"sort":{"_id":1}} · Double-click a result document to inspect it.
+        </div>
+        <!-- Query Editor -->
         <div
             v-if="activeTab"
             class="flex-grow min-h-0 min-w-0 relative overflow-hidden"
@@ -59,7 +63,7 @@
             <SqlEditor
                 ref="sqlEditorRef"
                 :model-value="activeTab.sql"
-                :db-driver="'pgx'"
+                :db-driver="dbDriver"
                 @update:model-value="handleSqlUpdate"
                 @execute="executeActiveTab"
             />
@@ -95,7 +99,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { useConnectionStore } from "@/stores/connectionStore";
+const connectionStore = useConnectionStore();
+const dbDriver = computed(() => {
+ const driver = connectionStore.activeConnection?.driver;
+ return driver === "mysql" || driver === "sqlite" || driver === "mongodb" ? driver : "pgx";
+});
 import type { QueryTab } from "@/types/queryTab";
 import SqlEditor from "./SqlEditor.vue";
 

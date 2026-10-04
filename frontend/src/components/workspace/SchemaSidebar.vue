@@ -18,9 +18,7 @@
                         <span class="font-bold">
                             {{ activeConnection?.driver }}
                         </span>
-                        ({{ activeConnection?.host }}:{{
-                            activeConnection?.port?.Int64
-                        }})
+                        ({{ connectionAddress }})
                     </div>
                 </div>
             </div>
@@ -97,7 +95,7 @@
                 <q-icon name="table_rows" size="24px" />
 
                 <span class="text-[10px] font-mono">
-                    No tables found
+                    No {{ activeConnection?.driver === 'mongodb' ? 'collections' : 'tables' }} found
                 </span>
             </div>
         </q-scroll-area>
@@ -108,7 +106,7 @@
         >
             <div class="flex items-center gap-3">
                 <span class="text-[10px] text-[#4b4540] font-mono">
-                    {{ tableCount }} tables
+                    {{ tableCount }} {{ activeConnection?.driver === 'mongodb' ? 'collections' : 'tables' }}
                 </span>
 
                 <span class="text-[10px] text-[#4b4540] font-mono">
@@ -134,12 +132,27 @@ const {
     searchTerm
 } = storeToRefs(connectionStore);
 
+const connectionAddress = computed(() => {
+    const connection = activeConnection.value;
+    if (!connection) return "";
+    if (/^mongodb(?:\+srv)?:\/\//.test(connection.host)) {
+        try { return new URL(connection.host).host; } catch { return "MongoDB"; }
+    }
+    // A MongoDB URI returned by the backend has already been reduced to its hosts.
+    if (connection.driver === "mongodb" && (connection.host.includes(":") || connection.host.includes(","))) {
+        return connection.host;
+    }
+    return connection.port?.Valid ? `${connection.host}:${connection.port.Int64}` : connection.host;
+});
+
 interface SchemaNode {
     id: string;
     label: string;
     icon: string;
     iconColor: string;
     type?: string;
+    schema?: string;
+    database?: string;
     children?: SchemaNode[];
 }
 
@@ -206,10 +219,12 @@ const loading = ref(false);
  
              return {
                  id: `${schema}.${item.name}`,
+                 schema,
+                 database: item.database,
                  label: item.name,
-                 icon: isView ? "view_list" : "table_chart",
+                 icon: item.type === "COLLECTION" ? "data_object" : isView ? "view_list" : "table_chart",
                  iconColor: isView ? "blue-4" : "amber-4",
-                 type: isView ? "view" : "table",
+                 type: item.type === "COLLECTION" ? "collection" : isView ? "view" : "table",
              };
          }),
      }));
@@ -224,7 +239,7 @@ const tableCount = computed(() => {
     }
 
     return metadata.filter(
-        (item) => item.type === "TABLE"
+        (item) => item.type === "TABLE" || item.type === "COLLECTION"
     ).length;
 });
 
@@ -253,7 +268,7 @@ async function refreshSchema() {
 }
 
 function handleNodeDoubleClick(node: SchemaNode) {
-    if (node.type === "table" || node.type === "view") {
+    if (node.type === "table" || node.type === "view" || node.type === "collection") {
         emit("selectTable", node);
     }
 }

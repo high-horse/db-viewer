@@ -13,15 +13,19 @@
             <span
                 class="font-bold text-white tracking-wide text-sm"
             >
-                SQL Client Pro
+                DB Viewer
             </span>
 
             <q-badge
-                color="amber-10"
-                text-color="amber-4"
-                label="Connected"
-                class="text-xs font-medium border border-amber-9"
-            />
+                :color="connected ? 'green-10' : 'grey-9'"
+                :text-color="connected ? 'green-4' : 'grey-5'"
+                class="text-xs font-medium flex items-center gap-1.5"
+                role="status"
+                aria-live="polite"
+            >
+                <q-icon name="circle" size="8px" :color="connected ? 'green-4' : 'grey-5'" aria-hidden="true" />
+                {{ connected ? 'Connected' : 'Not connected' }}
+            </q-badge>
         </div>
 
         <!-- Right -->
@@ -50,6 +54,37 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from "vue";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { DbService } from "@bindings/db-viewer/internal/app";
+
+const connectionStore = useConnectionStore();
+const connected = ref(false);
+
+watch(() => connectionStore.activeConnection?.id, (id, _previous, onCleanup) => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    connected.value = id !== undefined;
+    onCleanup(() => {
+        stopped = true;
+        clearTimeout(timer);
+    });
+    if (id === undefined) return;
+
+    async function checkConnection() {
+        let reachable = false;
+        try {
+            reachable = await DbService.PingConnection(String(id));
+        } catch {
+            reachable = false;
+        }
+        if (stopped) return;
+        connected.value = reachable;
+        timer = setTimeout(checkConnection, 5000);
+    }
+    void checkConnection();
+}, { immediate: true });
+
 const emit = defineEmits<{
     disconnect: [];
     settings: [];
