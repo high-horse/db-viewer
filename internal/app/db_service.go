@@ -258,6 +258,13 @@ func (s *DbService) PingConnection(ctx context.Context, connID string) (bool, er
 	return true, nil
 }
 
+func (s *DbService) TestSSHConnection(ctx context.Context, config entities.SSHConfig) (bool, error) {
+	if err := transports.TestSSH(ctx, config); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (s *DbService) PingConfig(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
 
 	transport, err := transports.ForConfig(config)

@@ -66,3 +66,7 @@ export function SaveAndConnect(config: entities$0.ConnectionConfig): $Cancellabl
 export function SaveTableChanges(input: entities$0.TableChanges): $CancellablePromise<entities$0.TableSaveResult | null> {
     return $Call.ByID(2824824671, input);
 }
+
+export function TestSSHConnection(config: entities$0.SSHConfig): $CancellablePromise<boolean> {
+    return $Call.ByID(465824935, config);
+}

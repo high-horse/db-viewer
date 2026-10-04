@@ -1,346 +1,122 @@
 <template>
-    <div
-        class="w-full max-w-xl bg-[#161310] backdrop-blur-md p-6 rounded-xl border shadow-2xl"
-    >
-        <div v-if="editingId" class="mb-4 flex items-center justify-between">
-            <span class="text-sm font-semibold text-white">Edit Connection</span>
-            <q-btn flat dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
-        </div>
-        <!-- Header Section (Flex Container) -->
-        <!-- <div class="flex items-center gap-3 mb-6">
-            <div>
-                <h4 class="text-sm font-bold text-white">
-                    Setup Database Session
-                </h4>
-                <p class="text-[11px] text-[#8a8478]">
-                    Initialize single engine configuration links dynamically
-                </p>
+    <q-card flat bordered class="connection-card">
+        <q-card-section class="row items-center no-wrap q-pa-lg">
+            <q-avatar rounded color="amber-10" text-color="amber-3" icon="storage" size="44px" />
+            <div class="q-ml-md col">
+                <div class="text-h6">{{ editingId ? 'Edit connection' : 'Database connection' }}</div>
+                <div class="text-caption text-grey-5">{{ editingId ? 'Update your saved connection settings.' : 'Choose a database and enter your connection details.' }}</div>
             </div>
-        </div> -->
-
-        <!-- Tabs (Full Width) -->
-        <q-tabs
-            v-model="form.type"
-            dense
-            active-color="amber"
-            indicator-color="amber"
-            align="left"
-            class="w-full"
-        >
+            <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
+        </q-card-section>
+        <q-tabs v-model="form.type" dense active-color="amber" indicator-color="amber" align="justify" no-caps class="q-px-md">
             <q-tab name="pgx" label="PostgreSQL" />
             <q-tab name="mysql" label="MySQL" />
             <q-tab name="sqlite" label="SQLite" />
             <q-tab name="mongodb" label="MongoDB" />
         </q-tabs>
-
-        <!-- Form (Full Width) -->
-        <q-form
-            ref="formRef"
-            @submit="editingId ? saveConnection() : connect()"
-            class="flex-1 flex flex-col min-h-0 px-6 pb-6 q-pt-md"
-        >
-            <div class="flex-1 min-h-0">
-                <!-- <q-scroll-area style="height: 100%; min-width: 300px"> -->
+        <q-separator dark />
+        <q-form ref="formRef" @submit="editingId ? saveConnection() : connect()">
+            <q-card-section class="q-pa-lg">
+                <div class="row q-col-gutter-md">
+                    <div class="col-12">
+                        <q-input v-model="form.connection_name" label="Connection name" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                    </div>
                     <template v-if="form.type !== 'sqlite'">
-                        <q-input
-                            v-model="form.host"
-                            :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database Host'"
-                            :hint="form.type === 'mongodb' ? 'Host or mongodb:// / mongodb+srv:// URI. With SSH, enter a host reached from the SSH server.' : 'With SSH, this host is reached from the SSH server'"
-                            class="w-full"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        />
-
-                        <q-input
-                            v-model.number="form.port"
-                            label="Port"
-                            type="number"
-                            class="w-full"
-                            :disable="isMongoURI"
-                            :rules="isMongoURI ? [] : [validPort]"
-                            outlined
-                            dense
-                        />
-
-                        <q-input
-                            v-model="form.user"
-                            :label="form.type === 'mongodb' ? 'User (optional; host connections use admin)' : 'User'"
-                            class="w-full"
-                            :disable="isMongoURI"
-                            :rules="form.type === 'mongodb' ? [] : [required]"
-                            outlined
-                            dense
-                        />
-
-                        <q-input
-                            v-model="form.password"
-                            label="Password"
-                            type="password"
-                            :disable="isMongoURI"
-                            class="w-full q-pb-md"
-                            outlined
-                            dense
-                        />
-
-                        <q-input
-                            v-model="form.database"
-                            label="Database"
-                            class="w-full"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        />
-
-                        <q-input
-                            v-model="form.connection_name"
-                            label="Connection Name"
-                            class="w-full"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        />
-
-                        <div class="q-mt-md" v-if="false">
-                            <div class="text-caption text-grey-5 q-mb-sm">
-                                Connection Color
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <q-btn flat dense no-caps
-                                    v-for="color in colors"
-                                    :key="color"
-                                    type="button"
-                                    class="w-7 h-7 rounded-md flex items-center justify-center border-2 border-transparent cursor-pointer transition-transform duration-150 hover:scale-110"
-                                    :class="
-                                        form.color === color
-                                            ? 'border-white ring-2 ring-white/40'
-                                            : ''
-                                    "
-                                    :style="{ backgroundColor: color, minHeight: '28px', padding: 0 }"
-                                    @click="form.color = color"
-                                >
-                                    <q-icon
-                                        v-if="form.color === color"
-                                        name="check"
-                                        size="16px"
-                                        color="white"
-                                    />
-                                </q-btn>
-
-                                <span class="text-xs text-grey-5 ml-2">
-                                    {{ form.color }}
-                                </span>
-                            </div>
+                        <div class="col-12 col-sm-8">
+                            <q-input v-model="form.host" :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database host'" :rules="[required]" outlined dense color="amber" hide-bottom-space />
                         </div>
-
-                        <q-checkbox
-                            v-if="!editingId"
-                            v-model="form.save_connection"
-                            label="Save connection"
-                            class="w-1/2 q-pt-md"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        />
-                        <q-checkbox
-                            v-model="form.readonly"
-                            label="Readonly"
-                            class="w-1/2 q-pt-md"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        />
-                        <q-btn v-if="form.use_ssh" flat color="amber" label="Edit SSH Configuration" @click="sshDialog = true" />
-                        <q-checkbox
-                            v-model="form.use_ssh"
-                            label="Connect through SSH tunnel"
-                            class="w-full q-pt-md"
-                            :disable="isMongoURI"
-                            dense
-                        />
+                        <div class="col-12 col-sm-4">
+                            <q-input v-model.number="form.port" label="Port" type="number" :disable="isMongoURI" :rules="isMongoURI ? [] : [validPort]" outlined dense color="amber" hide-bottom-space />
+                        </div>
+                        <div v-if="form.use_ssh || form.type === 'mongodb'" class="col-12 text-caption text-grey-5">
+                            {{ form.use_ssh ? 'Use the database host reachable from your SSH server.' : 'Enter a host or mongodb:// / mongodb+srv:// URI.' }}
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <q-input v-model="form.user" :label="form.type === 'mongodb' ? 'User (optional)' : 'User'" :disable="isMongoURI" :rules="form.type === 'mongodb' ? [] : [required]" outlined dense color="amber" hide-bottom-space />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <q-input v-model="form.password" label="Password" type="password" :disable="isMongoURI" outlined dense color="amber" hide-bottom-space />
+                        </div>
+                        <div class="col-12">
+                            <q-input v-model="form.database" label="Database" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                        </div>
                     </template>
-
-                    <!-- SQLite fields -->
-                    <template v-else>
-                        <q-input v-model="form.connection_name" label="Connection Name" :rules="[required]" outlined dense />
-                        <q-checkbox v-model="form.readonly" label="Readonly" dense />
-                        <q-input
-                            v-model="form.database"
-                            label="Database File"
-                            hint="/path/to/database.db"
-                            class="w-full"
-                            :rules="[required]"
-                            outlined
-                            dense
-                        >
-                            <template #append>
-                                <q-icon name="folder" />
-                            </template>
+                    <div v-else class="col-12">
+                        <q-input v-model="form.database" label="Database file" hint="/path/to/database.db" :rules="[required]" outlined dense color="amber">
+                            <template #append><q-icon name="folder_open" /></template>
                         </q-input>
-                    </template>
-                <!-- </q-scroll-area> -->
-            </div>
-            <q-btn
-                unelevated
-                color="amber"
-                class="w-full text-capitalize q-mt-md text-black"
-                type="submit"
-                :loading="saving"
-                :disable="loadingSavedConnection"
-                rounded
-            >
-                {{ editingId ? 'Save Changes' : 'Test Connection' }}
-            </q-btn>
+                    </div>
+                </div>
+                <div class="row items-center q-gutter-x-lg q-mt-lg">
+                    <q-checkbox v-if="!editingId" v-model="form.save_connection" label="Save connection" dense color="amber" />
+                    <q-checkbox v-model="form.readonly" label="Read only" dense color="amber" />
+                </div>
+                <q-list v-if="form.type !== 'sqlite'" bordered class="connection-options q-mt-lg">
+                    <q-item>
+                        <q-item-section avatar><q-icon name="vpn_key" color="amber" /></q-item-section>
+                        <q-item-section>
+                            <q-item-label>SSH tunnel</q-item-label>
+                            <q-item-label caption>{{ form.use_ssh && sshForm.host ? `${sshForm.username}@${sshForm.host}:${sshForm.port}` : 'Connect through an SSH server' }}</q-item-label>
+                        </q-item-section>
+                        <q-item-section side><q-toggle v-model="form.use_ssh" :disable="isMongoURI" color="amber" aria-label="Connect through SSH tunnel" /></q-item-section>
+                    </q-item>
+                    <q-item v-if="form.use_ssh" dense>
+                        <q-item-section><q-btn flat no-caps color="amber" label="Configure SSH" icon="settings" @click="sshDialog = true" /></q-item-section>
+                    </q-item>
+                </q-list>
+            </q-card-section>
+            <q-separator dark />
+            <q-card-actions align="right" class="q-pa-lg">
+                <q-btn v-if="editingId" flat no-caps label="Cancel" color="grey-5" :disable="saving" @click="cancelEdit" />
+                <q-btn unelevated no-caps color="amber" text-color="black" :label="editingId ? 'Save changes' : 'Test connection'" :icon="editingId ? 'save' : 'network_check'" type="submit" :loading="saving" :disable="loadingSavedConnection" />
+            </q-card-actions>
         </q-form>
+    </q-card>
 
-        <q-dialog v-model="sshDialog" persistent>
-            <q-card class="w-full max-w-lg bg-[#161310] text-white">
-                <q-card-section class="flex items-center justify-between">
-                    <div>
-                        <div class="text-base font-bold">SSH Configuration</div>
-
-                        <div class="text-xs text-grey-5 q-mt-xs">
-                            Configure the SSH tunnel for this connection. Trust the server using OpenSSH first; its key must be in ~/.ssh/known_hosts.
-                        </div>
-                    </div>
-
-                    <q-btn
-                        flat
-                        round
-                        dense
-                        icon="close"
-                        color="grey-5"
-                        @click="cancelSsh"
-                    />
-                </q-card-section>
-
-                <q-separator dark />
-
-                <q-form ref="sshFormRef" @submit="saveSshConfig">
-                <q-card-section class="q-gutter-md">
-                    <q-input
-                        v-model="sshForm.name"
-                        label="Configuration Name"
-                        outlined
-                        dense
-                        color="amber"
-                        :rules="[required]"
-                    />
-
+    <q-dialog v-model="sshDialog" persistent>
+        <q-card flat bordered class="connection-card ssh-card">
+            <q-card-section class="row items-center no-wrap q-pa-lg">
+                <q-avatar rounded color="amber-10" text-color="amber-3" icon="vpn_key" size="44px" />
+                <div class="col q-ml-md">
+                    <div class="text-h6">SSH configuration</div>
+                    <div class="text-caption text-grey-5">Set up the tunnel for this database connection.</div>
+                </div>
+                <q-btn flat round dense icon="close" color="grey-5" aria-label="Close SSH configuration" :disable="testingSsh" @click="cancelSsh" />
+            </q-card-section>
+            <q-separator dark />
+            <q-form ref="sshFormRef" @submit="saveSshConfig">
+                <q-card-section class="q-pa-lg">
                     <div class="row q-col-gutter-md">
-                        <div class="col-8">
-                            <q-input
-                                v-model="sshForm.host"
-                                label="SSH Host"
-                                outlined
-                                dense
-                                color="amber"
-                                :rules="[required]"
-                            />
+                        <div class="col-12"><q-input v-model="sshForm.name" label="Configuration name" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12 col-sm-8"><q-input v-model="sshForm.host" label="SSH host" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12 col-sm-4"><q-input v-model.number="sshForm.port" label="Port" type="number" :rules="[validPort]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12"><q-input v-model="sshForm.username" label="Username" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12">
+                            <q-select v-model="sshForm.auth_method" label="Authentication method" outlined dense color="amber" emit-value map-options :disable="testingSsh" :options="[{ label: 'Local keys / agent', value: 'password' }, { label: 'Private key', value: 'private_key' }]" />
                         </div>
-
-                        <div class="col-4">
-                            <q-input
-                                v-model.number="sshForm.port"
-                                label="Port"
-                                type="number"
-                                outlined
-                                dense
-                                color="amber"
-                                :rules="[validPort]"
-                            />
+                        <div v-if="sshForm.auth_method === 'password'" class="col-12">
+                            <q-input v-model="sshForm.password" label="SSH password (optional)" hint="Leave blank to use your SSH agent or local keys." type="password" outlined dense color="amber" :disable="testingSsh" />
                         </div>
+                        <template v-if="sshForm.auth_method === 'private_key'">
+                            <div class="col-12"><q-input v-model="sshForm.private_key" label="Private key or file path" :rules="[required]" type="textarea" outlined dense color="amber" autogrow hint="Paste your key or enter a path such as ~/.ssh/id_ed25519" :disable="testingSsh" /></div>
+                            <div class="col-12"><q-input v-model="sshForm.passphrase" label="Key passphrase (optional)" type="password" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        </template>
                     </div>
-
-                    <q-input
-                        v-model="sshForm.username"
-                        label="Username"
-                        outlined
-                        dense
-                        color="amber"
-                        :rules="[required]"
-                    />
-
-                    <q-select
-                        v-model="sshForm.auth_method"
-                        label="Authentication Method"
-                        outlined
-                        dense
-                        color="amber"
-                        emit-value
-                        map-options
-                        :options="[
-                            {
-                                label: 'Password',
-                                value: 'password',
-                            },
-                            {
-                                label: 'Private Key',
-                                value: 'private_key',
-                            },
-                        ]"
-                    />
-
-                    <!-- Password authentication -->
-                    <q-input
-                        v-if="sshForm.auth_method === 'password'"
-                        v-model="sshForm.password"
-                        label="SSH Password"
-                        :rules="[required]"
-                        type="password"
-                        outlined
-                        dense
-                        color="amber"
-                    />
-
-                    <!-- Private key authentication -->
-                    <template v-if="sshForm.auth_method === 'private_key'">
-                        <q-input
-                            v-model="sshForm.private_key"
-                            label="Private Key or File Path"
-                            :rules="[required]"
-                            type="textarea"
-                            outlined
-                            dense
-                            color="amber"
-                            autogrow
-                            hint="Paste the key or enter /path/to/key (or ~/.ssh/id_ed25519)"
-                        />
-
-                        <q-input
-                            v-model="sshForm.passphrase"
-                            label="Key Passphrase"
-                            type="password"
-                            outlined
-                            dense
-                            color="amber"
-                        />
-                    </template>
+                    <q-banner dense rounded class="connection-note q-mt-lg">
+                        <template #avatar><q-icon name="info_outline" color="amber" /></template>
+                        Test SSH checks your SSH login. Test connection checks database access through the tunnel.
+                    </q-banner>
+                    <div class="text-caption text-grey-5 q-mt-md">Connect with OpenSSH first to trust the server in ~/.ssh/known_hosts.</div>
                 </q-card-section>
-
                 <q-separator dark />
-
-                <q-card-actions align="right" class="q-pa-md">
-                    <q-btn
-                        flat
-                        label="Cancel"
-                        color="grey-5"
-                        @click="cancelSsh"
-                    />
-
-                    <q-btn
-                        unelevated
-                        label="Save SSH Configuration"
-                        color="amber"
-                        text-color="black"
-                        type="submit"
-                    />
+                <q-card-actions align="right" class="q-pa-lg">
+                    <q-btn flat no-caps label="Cancel" color="grey-5" :disable="testingSsh" @click="cancelSsh" />
+                    <q-btn outline no-caps label="Test SSH" icon="network_check" color="amber" :loading="testingSsh" @click="testSshConnection" />
+                    <q-btn unelevated no-caps label="Save SSH" icon="save" color="amber" text-color="black" :disable="testingSsh" type="submit" />
                 </q-card-actions>
-                </q-form>
-            </q-card>
-        </q-dialog>
-    </div>
+            </q-form>
+        </q-card>
+    </q-dialog>
 </template>
 
 <script setup lang="ts">
@@ -349,11 +125,10 @@ import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { DbService, DatabaseService } from "@bindings/db-viewer/internal/app";
 import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
-import { useQuasar, Dialog, Notify } from "quasar";
+import { Dialog, Notify } from "quasar";
 import { useActiveConnection } from "@/stores/activeConnection";
 import { useRouter, useRoute } from "vue-router";
 
-const $q = useQuasar();
 const $router = useRouter();
 const route = useRoute();
 const editingId = computed(() => typeof route.query.edit === "string" ? route.query.edit : "");
@@ -390,23 +165,13 @@ const sshForm = ref({
 });
 
 const sshDialog = ref(false);
+const testingSsh = ref(false);
+let sshSnapshot = { ...sshForm.value };
+watch(sshDialog, (open) => {
+    if (open) sshSnapshot = { ...sshForm.value };
+});
 const isMongoURI = computed(() => form.value.type === "mongodb" && /^mongodb(?:\+srv)?:\/\//.test(form.value.host));
 watch(isMongoURI, (enabled) => { if (enabled) form.value.use_ssh = false; });
-
-const colors = [
-    "#EF4444", // Red
-    "#F97316", // Orange
-    "#EAB308", // Yellow
-    "#84CC16", // Lime
-    "#22C55E", // Green
-    "#14B8A6", // Teal
-    "#06B6D4", // Cyan
-    "#3B82F6", // Blue
-    "#6366F1", // Indigo
-    "#8B5CF6", // Violet
-    "#A855F7", // Purple
-    "#EC4899", // Pink
-];
 
 const required = (value: string | number | null) =>
     !!value || "This field is required";
@@ -477,22 +242,41 @@ function parseToConfig() {
         SSHConfigID: null,
 
         SSHConfig: form.value.type !== "sqlite" && form.value.use_ssh
-            ? {
-                  Name: sshForm.value.name,
-                  Host: sshForm.value.host,
-                  Port: sshForm.value.port,
-                  Username: sshForm.value.username,
-                  AuthMethod: sshForm.value.auth_method,
-                  PrivateKey: sshForm.value.private_key,
-                  Passphrase: sshForm.value.passphrase,
-                  Password: sshForm.value.password,
-              }
+            ? parseSshConfig()
             : null,
 
         InMemory: false,
         ReadOnly: form.value.readonly,
         Color: form.value.color,
     };
+}
+
+function parseSshConfig() {
+    return {
+        ID: 0,
+        Name: sshForm.value.name,
+        Host: sshForm.value.host.trim(),
+        Port: Number(sshForm.value.port),
+        Username: sshForm.value.username.trim(),
+        AuthMethod: sshForm.value.auth_method,
+        PrivateKey: sshForm.value.private_key,
+        Passphrase: sshForm.value.passphrase,
+        Password: sshForm.value.password,
+    };
+}
+
+async function testSshConnection() {
+    if (testingSsh.value || !(await sshFormRef.value?.validate())) return;
+    testingSsh.value = true;
+    try {
+        const ok = await DbService.TestSSHConnection(parseSshConfig());
+        if (!ok) throw new Error("SSH connection test failed");
+        Notify.create({ message: "SSH connection successful", color: "positive" });
+    } catch (error: any) {
+        Dialog.create({ title: "SSH connection failed", message: error?.message || String(error), color: "negative" });
+    } finally {
+        testingSsh.value = false;
+    }
 }
 
 async function saveSshConfig() {
@@ -502,8 +286,8 @@ async function saveSshConfig() {
 
 function cancelSsh() {
     sshDialog.value = false;
-    form.value.use_ssh = false;
-    resetSshForm();
+    sshForm.value = { ...sshSnapshot };
+    if (!sshSnapshot.host || !sshSnapshot.username) form.value.use_ssh = false;
 }
 
 function resetSshForm() {
@@ -583,7 +367,7 @@ async function cancelEdit() {
 }
 async function saveConnection() {
     if (saving.value || !(await formRef.value?.validate())) return;
-    if (form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "password" ? !sshForm.value.password : !sshForm.value.private_key))) {
+    if (form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "private_key" && !sshForm.value.private_key))) {
         sshDialog.value = true;
         return;
     }
