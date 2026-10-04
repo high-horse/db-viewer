@@ -23,7 +23,7 @@
                 icon="add"
                 label="New Connection"
                 class="text-xs font-bold text-capitalize"
-                @click="() => (showNewConnectionDialog = true)"
+                @click="$router.push({ name: 'Welcome', query: {} })"
             />
         </header>
 
@@ -81,13 +81,20 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <q-icon
-                                        name="more_vert"
-                                        size="25px"
-                                        class="text-amber-400"
-                                    />
-                                </div>
+                                <q-btn flat round dense icon="more_vert" color="amber" :aria-label="`Actions for ${connection.name}`" @click.stop @dblclick.stop>
+                                    <q-menu class="bg-[#161310] text-gray-300 border border-[#292521]">
+                                        <q-list dense>
+                                            <q-item clickable v-close-popup @click="editConnection(connection.id)">
+                                                <q-item-section avatar><q-icon name="edit" size="16px" /></q-item-section>
+                                                <q-item-section>Edit connection</q-item-section>
+                                            </q-item>
+                                            <q-item clickable v-close-popup class="text-red-400" @click="connectionToDelete = connection">
+                                                <q-item-section avatar><q-icon name="delete_outline" size="16px" /></q-item-section>
+                                                <q-item-section>Delete connection</q-item-section>
+                                            </q-item>
+                                        </q-list>
+                                    </q-menu>
+                                </q-btn>
                             </div>
                         </div>
                     </div>
@@ -105,22 +112,57 @@
                 </q-layout>
             </main>
         </div>
+        <q-dialog :model-value="!!connectionToDelete" :persistent="deletingConnection" @update:model-value="value => { if (!value) connectionToDelete = null; }">
+            <q-card class="bg-[#161310] text-gray-300" style="width: 400px; max-width: 90vw">
+                <q-card-section class="text-base font-semibold">Delete connection</q-card-section>
+                <q-card-section class="pt-0">
+                    Delete “{{ connectionToDelete?.name }}” from saved connections? Your database and its data will remain unchanged.
+                </q-card-section>
+                <q-card-actions align="right">
+                    <q-btn flat no-caps label="Cancel" :disable="deletingConnection" @click="connectionToDelete = null" />
+                    <q-btn flat no-caps color="red" label="Delete" :loading="deletingConnection" @click="deleteConnection" />
+                </q-card-actions>
+            </q-card>
+        </q-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted } from "vue";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useActiveConnection } from "@/stores/activeConnection";
+import type { Connection } from "@bindings/db-viewer/internal/types";
 
 const $router = useRouter();
 const activeConnectionStore = useActiveConnection();
 const store = useConnectionStore();
+const connectionToDelete = ref<Connection | null>(null);
+const deletingConnection = ref(false);
+
+async function deleteConnection() {
+    const connection = connectionToDelete.value;
+    if (!connection || deletingConnection.value) return;
+    deletingConnection.value = true;
+    try {
+        if (await store.deleteConnection(connection.id)) {
+            connectionToDelete.value = null;
+            if ($router.currentRoute.value.query.edit === String(connection.id)) {
+                await $router.replace({ name: "Welcome", query: {} });
+            }
+        }
+    } finally {
+        deletingConnection.value = false;
+    }
+}
 
 const { connections, showNewConnectionDialog, activeConnection } =
     storeToRefs(store);
+
+function editConnection(id: number) {
+    $router.push({ name: "Welcome", query: { edit: String(id) } });
+}
 
 async function selectConnection(connection: any) {
     store.setSelectedSession(connection);

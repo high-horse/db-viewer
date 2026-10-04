@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as json$0 from "../../../../encoding/json/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as time$0 from "../../../../time/models.js";
 
 export interface ColumnInfo {
@@ -27,6 +30,17 @@ export interface ConnectionConfig {
     "InMemory": boolean;
     "ReadOnly": boolean;
     "Color": string;
+}
+
+export interface InspectColumnInfo {
+    "name": string;
+    "databaseType": string;
+    "nullable": boolean;
+    "defaultValue": any;
+    "primaryKey": boolean;
+    "generated": boolean;
+    "autoIncrement": boolean;
+    "length"?: number;
 }
 
 export interface InspectTableInfo {
@@ -54,22 +68,40 @@ export enum QueryExecutionType {
     QueryExecutionExecute = 0,
     QueryExecutionFetchPaged = 1,
     QueryExecuteRefresh = 2,
+    QueryExecutionClose = 3,
+    QueryExecutionNavigate = 4,
 };
 
 export interface QueryInput {
     "query": string;
     "cursor": string;
     "type": QueryExecutionType;
+    "pageSize": number;
+    "page": number;
+    "sortColumn"?: number;
+    "sortDirection"?: string;
 }
 
 export interface QueryResult {
     "columns": ColumnInfo[] | null;
+    "documents"?: string[] | null;
     "rows": (any[] | null)[] | null;
     "rowsAffected": number;
     "lastInsertId": number;
     "duration": time$0.Duration;
     "isQuery": boolean;
     "cursor": string;
+    "hasMore": boolean;
+    "startRow": number;
+    "pageSize": number;
+    "totalRows"?: number | null;
+    "canNavigate": boolean;
+}
+
+export interface RowChange {
+    "operation": string;
+    "keys": { [_ in string]?: json$0.RawMessage } | null;
+    "values": { [_ in string]?: json$0.RawMessage } | null;
 }
 
 export interface SSHConfig {
@@ -82,4 +114,32 @@ export interface SSHConfig {
     "PrivateKey": string;
     "Passphrase": string;
     "Password": string;
+}
+
+export interface TableChanges {
+    "cursor": string;
+    "table": TableRef;
+    "changes": RowChange[] | null;
+}
+
+export interface TableEditInfo {
+    "table": TableRef;
+    "driver": string;
+    "columns": InspectColumnInfo[] | null;
+    "keys": string[] | null;
+    "canInsert": boolean;
+    "canModify": boolean;
+    "reason": string;
+}
+
+export interface TableRef {
+    "connectionId": string;
+    "name": string;
+    "schema": string;
+    "database": string;
+}
+
+export interface TableSaveResult {
+    "applied": number;
+    "error": string;
 }

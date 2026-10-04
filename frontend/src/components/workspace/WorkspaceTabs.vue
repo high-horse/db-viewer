@@ -53,7 +53,7 @@
 
                             <!-- Dirty indicator -->
                             <span
-                                v-if="tab.type === 'query' && tab.dirty"
+                                v-if="(tab.type === 'query' && tab.dirty) || edits.hasPending(tab.id)"
                                 class="text-amber-500 text-[9px]"
                             >
                                 ●
@@ -109,6 +109,8 @@
 </template>
 
 <script setup lang="ts">
+import { useTableEditsStore } from "@/stores/tableEditsStore";
+const edits = useTableEditsStore();
 import type { QueryTab } from "@/types/queryTab";
 
 defineProps<{

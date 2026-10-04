@@ -53,6 +53,19 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
+  async function deleteConnection(id: number): Promise<boolean> {
+    try {
+      await DatabaseService.DeleteConnection(id);
+      connections.value = connections.value.filter(connection => connection.id !== id);
+      if (selectedConnection.value?.id === id) clearSelectedSession();
+      Notify.create({ type: "positive", message: "Connection deleted" });
+      return true;
+    } catch (error) {
+      Notify.create({ type: "negative", message: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  }
+
   // Shared mapper — used by both ping and connect so they can never drift apart.
   function toConfig(connection: Connection): ConnectionConfig {
     return {
@@ -88,7 +101,7 @@ export const useConnectionStore = defineStore("connection", () => {
           }
         : null,
       InMemory: false,
-      ReadOnly: false,
+      ReadOnly: connection.read_only,
       Color: connection.color.Valid ? connection.color.String : "",
     };
   }
@@ -185,6 +198,7 @@ export const useConnectionStore = defineStore("connection", () => {
     getActiveSession,
     clearActiveSession,
     getConnections,
+    deleteConnection,
     pingConnection,
     connectToSession,
     setActiveConnectionMetadata,

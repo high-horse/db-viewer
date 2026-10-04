@@ -151,6 +151,8 @@ func (i *PostgresInspector) ListColumns(
 			data_type,
 			is_nullable,
 			column_default,
+            is_identity,
+            is_generated,
 			COALESCE(
 				(
 					SELECT tc.constraint_type
@@ -192,8 +194,9 @@ func (i *PostgresInspector) ListColumns(
 		var (
 			col entities.InspectColumnInfo
 
-			isNullable string
-			columnKey  string
+			isNullable          string
+			columnKey           string
+			identity, generated string
 
 			defaultValue sql.NullString
 		)
@@ -203,6 +206,8 @@ func (i *PostgresInspector) ListColumns(
 			&col.DatabaseType,
 			&isNullable,
 			&defaultValue,
+			&identity,
+			&generated,
 			&columnKey,
 		)
 		if err != nil {
@@ -216,10 +221,12 @@ func (i *PostgresInspector) ListColumns(
 		}
 
 		col.PrimaryKey = columnKey == "PRIMARY KEY"
+		col.Generated = generated != "NEVER"
+		col.AutoIncrement = identity == "YES"
 
 		if defaultValue.Valid {
 			// PostgreSQL serial/bigserial/identity columns
-			col.AutoIncrement =
+			col.AutoIncrement = col.AutoIncrement ||
 				len(defaultValue.String) > 7 &&
 					defaultValue.String[:7] == "nextval"
 		}

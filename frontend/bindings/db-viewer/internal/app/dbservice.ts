@@ -19,6 +19,10 @@ export function Connect(config: entities$0.ConnectionConfig): $CancellablePromis
     return $Call.ByID(1396630503, config);
 }
 
+export function DescribeTableEdit(table: entities$0.TableRef): $CancellablePromise<entities$0.TableEditInfo | null> {
+    return $Call.ByID(918565934, table);
+}
+
 export function Disconnect(connID: string): $CancellablePromise<void> {
     return $Call.ByID(3910241401, connID);
 }
@@ -33,6 +37,10 @@ export function GetActiveConnection(): $CancellablePromise<string> {
 
 export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connection, boolean]> {
     return $Call.ByID(1493165516);
+}
+
+export function GetDDL(table: entities$0.TableRef): $CancellablePromise<string> {
+    return $Call.ByID(2116919059, table);
 }
 
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {
@@ -53,4 +61,8 @@ export function PingConnection(connID: string): $CancellablePromise<boolean> {
 
 export function SaveAndConnect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(2635117723, config);
+}
+
+export function SaveTableChanges(input: entities$0.TableChanges): $CancellablePromise<entities$0.TableSaveResult | null> {
+    return $Call.ByID(2824824671, input);
 }

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS connections (
     password TEXT,
     dbname TEXT,
     pinned BOOLEAN DEFAULT false,
+    read_only BOOLEAN NOT NULL DEFAULT false,
     color TEXT,
 
     ssh_config_id INTEGER,

@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"db-viewer/internal/engine/entities"
 	"db-viewer/internal/engine/transports"
+	"errors"
 	"fmt"
-	"log"
-	"strings"
+	"net"
+	"net/url"
 
 	// _ "github.com/lib/pq"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -50,39 +51,32 @@ func (c *Connection) DB() *sql.DB {
 }
 
 func (c *Connection) dsn() string {
-	// Fallback to config details if transport provides a non-standard network address
-	host := c.transport.Address()
-	if host == "localfs" || host == "" {
-		host = c.config.Host
+	host, port, _ := net.SplitHostPort(c.transport.Address())
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + c.config.Database, User: url.UserPassword(c.config.User, c.config.Password)}
+	q := u.Query()
+	q.Set("sslmode", "disable")
+	if c.config.SSL {
+		q.Set("sslmode", "require")
 	}
-	parts := []string{
-		fmt.Sprintf("host=%s", host),
-		fmt.Sprintf("port=%d", c.config.Port),
-		fmt.Sprintf("user=%s", c.config.User),
-		fmt.Sprintf("dbname=%s", c.config.Database),
-		"sslmode=disable",
-	}
-
-	if c.config.Password != "" {
-		parts = append(parts, fmt.Sprintf("password=%s", c.config.Password))
-	}
-
-	return strings.Join(parts, " ")
+	q.Set("connect_timeout", "15")
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func (c *Connection) Connect(ctx context.Context) error {
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
 	}
-	log.Println("conneccting to postgres pgx with dsn ", c.dsn())
 
 	db, err := sql.Open("pgx", c.dsn())
 	if err != nil {
+		_ = c.transport.Close()
 		return err
 	}
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
+		_ = c.transport.Close()
 		return err
 	}
 
@@ -93,13 +87,13 @@ func (c *Connection) Connect(ctx context.Context) error {
 }
 
 func (c *Connection) Disconnect() error {
-	if c.db == nil {
-		return nil
+	var err error
+	if c.db != nil {
+		err = c.db.Close()
+		c.db = nil
 	}
-
-	err := c.db.Close()
 	c.connected = false
-	return err
+	return errors.Join(err, c.transport.Close())
 }
 
 func (c *Connection) Ping(ctx context.Context) error {

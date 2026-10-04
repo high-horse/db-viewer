@@ -100,9 +100,9 @@ func (e *Executor) Execute(
 	for i, ct := range colTypes {
 		nullable, hasNullable := ct.Nullable()
 		columns[i] = entities.ColumnInfo{
-			Name: ct.Name(), 
+			Name:         ct.Name(),
 			DatabaseType: ct.DatabaseTypeName(),
-			Nullable: nullable && hasNullable,
+			Nullable:     nullable && hasNullable,
 		}
 	}
 
@@ -130,7 +130,7 @@ func (e *Executor) Execute(
 	}, nil
 }
 
-func prepareIndex() string{
+func prepareIndex() string {
 	return ""
 }
 
@@ -232,6 +232,8 @@ func normalizeRow(values []interface{}) []interface{} {
 	for i, v := range values {
 		if b, ok := v.([]byte); ok {
 			out[i] = string(b)
+		} else if integer, ok := v.(int64); ok && (integer > 9007199254740991 || integer < -9007199254740991) {
+			out[i] = fmt.Sprintf("%d", integer)
 		} else {
 			out[i] = v
 		}

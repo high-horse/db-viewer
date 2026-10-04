@@ -10,15 +10,15 @@
                 <span
                     v-if="result && !loading"
                     class="text-teal-400 font-bold"
-                >   
-                    • {{ result.Rows.length }} rows fetched
+                >
+                    • {{ result.Rows.length }} rows in this page
                 </span>
 
                 <span
                     v-if="loading"
                     class="text-amber-400 font-bold"
                 >
-                    • Executing...
+                    • {{ fetchingLast ? 'Fetching remaining pages…' : result ? 'Fetching page…' : 'Executing…' }}
                 </span>
             </div>
 
@@ -30,20 +30,20 @@
                     {{ result.Duration }}ms execution latency
                 </span>
 
-                <button
+                 <!-- <q-btn flat dense no-caps
                     type="button"
                     class="w-5 h-5 flex items-center justify-center rounded text-[#4b4540] hover:text-[#d1d5db] hover:bg-[#292521]"
-                    title="Hide results"
+                    title="Hide resultsssssss"
                     @click="emit('close')"
                 >
                     <q-icon name="close" size="14px" />
-                </button>
+                </q-btn> -->
             </div>
         </div>
 
         <!-- Loading -->
         <div
-            v-if="loading"
+            v-if="loading && !result"
             class="flex-grow flex flex-col items-center justify-center gap-3"
         >
             <q-spinner-dots color="amber" size="32px" />
@@ -73,6 +73,7 @@
 
         <!-- Result Content -->
         <template v-else-if="result">
+            <div v-if="pageError" role="alert" class="px-3 py-2 text-xs text-red-300">{{ pageError }}</div>
             <q-tabs
                 v-model="activeSubTab"
                 dense
@@ -87,27 +88,42 @@
                     label="Data"
                 />
                     <!-- icon="table_rows" -->
-            
+
                 <q-tab
                     name="schema"
                     label="Schema"
                 />
-                    <!-- icon="schema" -->
             </q-tabs>
 
-            <div
-                class="flex-1 min-h-0 min-w-0 overflow-hidden"
-            >
+            <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
                 <ResultTab
                     v-if="activeSubTab === 'data'"
                     :result="result"
+                    :table-tab-id="tableTabId"
+                    :loading="loading"
+                    :can-first="canFirst"
+                    :can-previous="canPrevious"
+                    :can-next="canNext"
+                    :can-last="canLast"
+                    :total-rows="totalRows"
+                    :fetching-last="fetchingLast"
+                    :sort-column="sortColumn"
+                    :sort-direction="sortDirection"
+                    @sort="(column, direction) => emit('sort', column, direction)"
+                    @first="emit('first')"
+                    @previous="emit('previous')"
+                    @next="emit('next')"
+                    @last="emit('last')"
+                    @stop="emit('stop')"
+                    @refresh="emit('refresh')"
                 />
-        
-                <SchemaTab
-                    v-else
+                <IndexSchema
+                    v-else-if="activeSubTab === 'schema'"
                     :result="result"
+                    :table-tab-id="tableTabId"
                 />
             </div>
+
 
         </template>
 
@@ -132,20 +148,34 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { QueryResult } from "@/types/queryTab";
-
-
-
 import ResultTab from "./ResultTab.vue";
-import SchemaTab from "./SchemaTab.vue";
+import IndexSchema from "./Schema/Index.vue";
 
 const props = defineProps<{
     result: QueryResult | null;
+    tableTabId?: string;
     loading?: boolean;
+    canFirst?: boolean;
+    canPrevious?: boolean;
+    canNext?: boolean;
+    canLast?: boolean;
+    totalRows?: number;
+    fetchingLast?: boolean;
+    sortColumn?: number;
+    sortDirection?: "asc" | "desc";
+    pageError?: string;
     error?: string | null;
 }>();
 
 const emit = defineEmits<{
     close: [];
+    first: [];
+    previous: [];
+    next: [];
+    last: [];
+    stop: [];
+    refresh: [];
+    sort: [column: number, direction?: "asc" | "desc"];
 }>();
 
 const activeSubTab = ref<"data" | "schema">("data");
