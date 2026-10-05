@@ -38,7 +38,7 @@ func main() {
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
-		Name:        "db-viewer",
+		Name:        "DB Lens",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(dbService),

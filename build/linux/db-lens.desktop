@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=db-lens
+Exec=db-lens
+Icon=db-lens
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false
