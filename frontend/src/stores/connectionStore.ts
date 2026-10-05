@@ -1,11 +1,11 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { DatabaseService } from "@bindings/db-viewer/internal/app";
-import type { Connection } from "@bindings/db-viewer/internal/types";
-import { DbService } from "@bindings/db-viewer/internal/app";
-import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
+import { DatabaseService } from "@bindings/db-lens/internal/app";
+import type { Connection } from "@bindings/db-lens/internal/types";
+import { DbService } from "@bindings/db-lens/internal/app";
+import type { ConnectionConfig } from "@bindings/db-lens/internal/engine/entities";
 import { Notify } from "quasar";
-import type { InspectColumnInfo, InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
+import type { InspectColumnInfo, InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 
 export const useConnectionStore = defineStore("connection", () => {
   const selectedConnection = ref<Connection | null>(null);

@@ -123,8 +123,8 @@
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { DbService, DatabaseService } from "@bindings/db-viewer/internal/app";
-import type { ConnectionConfig } from "@bindings/db-viewer/internal/engine/entities";
+import { DbService, DatabaseService } from "@bindings/db-lens/internal/app";
+import type { ConnectionConfig } from "@bindings/db-lens/internal/engine/entities";
 import { Dialog, Notify } from "quasar";
 import { useActiveConnection } from "@/stores/activeConnection";
 import { useRouter, useRoute } from "vue-router";

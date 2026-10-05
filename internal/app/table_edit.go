@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/tableedit"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/tableedit"
 )
 
 func (s *DbService) DescribeTableEdit(ctx context.Context, table entities.TableRef) (*entities.TableEditInfo, error) {

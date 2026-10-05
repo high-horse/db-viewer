@@ -16,7 +16,7 @@ function evaluate(source, overrides = {}) {
     new Function('module', 'exports', 'require', output)(module, module.exports, name => overrides[name] ?? require(name));
     return module.exports;
 }
-const stores = evaluate(readFileSync(new URL('../src/stores/tableEditsStore.ts', import.meta.url), 'utf8'), { '@bindings/db-viewer/internal/app': { DbService: backend } });
+const stores = evaluate(readFileSync(new URL('../src/stores/tableEditsStore.ts', import.meta.url), 'utf8'), { '@bindings/db-lens/internal/app': { DbService: backend } });
 const { descriptor } = parse(readFileSync(new URL('../src/components/workspace/resultGrid/TableDataEditor.vue', import.meta.url), 'utf8'));
 const componentSource = compileScript(descriptor, { id: 'table-editor-test' }).content;
 const component = evaluate(componentSource, {

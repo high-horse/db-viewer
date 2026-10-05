@@ -2,8 +2,8 @@ package db
 
 import (
 	"database/sql"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/types"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/types"
 	"fmt"
 	"strconv"
 )

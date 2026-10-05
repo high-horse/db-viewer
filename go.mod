@@ -1,4 +1,4 @@
-module db-viewer
+module db-lens
 
 go 1.25.0
 

@@ -13,13 +13,13 @@ import * as entities$0 from "../engine/entities/models.js";
 import * as types$0 from "../types/models.js";
 
 export function DeleteConnection(id: number): $CancellablePromise<void> {
-    return $Call.ByID(629468635, id);
+    return $Call.ByID(287776345, id);
 }
 
 export function GetConnections(): $CancellablePromise<types$0.Connection[] | null> {
-    return $Call.ByID(3875144445);
+    return $Call.ByID(2001799027);
 }
 
 export function UpdateConnection(config: entities$0.ConnectionConfig): $CancellablePromise<void> {
-    return $Call.ByID(761924589, config);
+    return $Call.ByID(3106709187, config);
 }

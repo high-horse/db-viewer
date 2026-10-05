@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

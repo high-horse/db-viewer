@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { DbService } from '@bindings/db-viewer/internal/app';
-import type { TableEditInfo, TableRef, RowChange } from '@bindings/db-viewer/internal/engine/entities';
+import { DbService } from '@bindings/db-lens/internal/app';
+import type { TableEditInfo, TableRef, RowChange } from '@bindings/db-lens/internal/engine/entities';
 import type { QueryResult } from '@/types/queryTab';
 
 export interface DraftRow {

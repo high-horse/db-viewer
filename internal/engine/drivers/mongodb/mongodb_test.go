@@ -2,8 +2,8 @@ package mongodb
 
 import (
 	"context"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/transports"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/transports"
 	"strings"
 	"testing"
 

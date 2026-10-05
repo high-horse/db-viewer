@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func testConnectionsDB(t *testing.T) {

@@ -1,9 +1,9 @@
 package app
 
 import (
-	"db-viewer/internal/db"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/types"
+	"db-lens/internal/db"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/types"
 )
 
 type DatabaseService struct{}

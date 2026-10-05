@@ -2,9 +2,10 @@ package mongodb
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
 	"fmt"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

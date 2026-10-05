@@ -5,12 +5,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
-	"golang.org/x/crypto/ssh/knownhosts"
 	"io"
 	"net"
 	"os"
@@ -18,6 +15,10 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func TestSSHTunnel(t *testing.T) {

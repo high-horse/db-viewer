@@ -1,8 +1,8 @@
 package pgxQueryParser
 
 import (
-	"db-viewer/internal/engine/entities"
-	queryParaser "db-viewer/internal/engine/parser"
+	"db-lens/internal/engine/entities"
+	queryParaser "db-lens/internal/engine/parser"
 
 	pgquery "github.com/pganalyze/pg_query_go/v5"
 )

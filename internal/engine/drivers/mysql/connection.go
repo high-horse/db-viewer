@@ -3,8 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/transports"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/transports"
 	"errors"
 	"fmt"
 	"time"

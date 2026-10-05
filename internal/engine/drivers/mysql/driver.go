@@ -2,22 +2,22 @@ package mysql
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/metadata"
-	"db-viewer/internal/engine/metadata/mySQLInspector"
-	queryParaser "db-viewer/internal/engine/parser"
-	mysqlQueryParser "db-viewer/internal/engine/parser/mysql"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/metadata"
+	"db-lens/internal/engine/metadata/mySQLInspector"
+	queryParaser "db-lens/internal/engine/parser"
+	mysqlQueryParser "db-lens/internal/engine/parser/mysql"
 
-	queryexecutor "db-viewer/internal/engine/queryExecutor"
-	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
-	"db-viewer/internal/engine/transports"
+	queryexecutor "db-lens/internal/engine/queryExecutor"
+	"db-lens/internal/engine/queryExecutor/sqlExecutor"
+	"db-lens/internal/engine/transports"
 )
 
 type Driver struct {
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
-	parser  queryParaser.Parser
+	parser    queryParaser.Parser
 }
 
 func NewDriver() *Driver {
@@ -25,7 +25,7 @@ func NewDriver() *Driver {
 		// Instantiate once during driver creation
 		executor:  sqlExecutor.New(),
 		inspector: mySQLInspector.NewInspector(),
-		parser: mysqlQueryParser.NewParser(),
+		parser:    mysqlQueryParser.NewParser(),
 	}
 }
 

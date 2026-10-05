@@ -2,14 +2,13 @@ package factory
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/drivers"
-	"db-viewer/internal/engine/entities"	
-	"db-viewer/internal/engine/transports"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/drivers"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/transports"
 	"fmt"
 	"log"
 )
-
 
 type Factory struct {
 	drivers map[string]drivers.Driver
@@ -21,12 +20,12 @@ func New() *Factory {
 	}
 }
 
-func(f *Factory) Register(driver drivers.Driver) {
+func (f *Factory) Register(driver drivers.Driver) {
 	log.Println("registering:", driver.Name())
 	f.drivers[driver.Name()] = driver
 }
 
-func(f *Factory) Create(
+func (f *Factory) Create(
 	ctx context.Context,
 	config entities.ConnectionConfig,
 	transport transports.Transport,
@@ -36,14 +35,13 @@ func(f *Factory) Create(
 	driver, ok := f.drivers[config.Type]
 
 	if !ok {
-		return nil, fmt.Errorf("unsupported database type %v", config.Type )
+		return nil, fmt.Errorf("unsupported database type %v", config.Type)
 	}
 
 	return driver.Create(ctx, config, transport)
 }
 
-
-func(f *Factory) Driver(name string) (drivers.Driver, error) {
+func (f *Factory) Driver(name string) (drivers.Driver, error) {
 	driver, ok := f.drivers[name]
 	if !ok {
 		return nil, fmt.Errorf("driver %q not registered", name)

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"db-viewer/internal/app"
-	"db-viewer/internal/db"
+	"db-lens/internal/app"
+	"db-lens/internal/db"
 	"embed"
 
 	"log"

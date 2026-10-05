@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func Quote(name, dialect string) string {

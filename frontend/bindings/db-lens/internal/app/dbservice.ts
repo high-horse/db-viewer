@@ -16,64 +16,64 @@ import * as entities$0 from "../engine/entities/models.js";
 import * as types$0 from "../types/models.js";
 
 export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
-    return $Call.ByID(1396630503, config);
+    return $Call.ByID(2446242533, config);
 }
 
 export function DescribeTableEdit(table: entities$0.TableRef): $CancellablePromise<entities$0.TableEditInfo | null> {
-    return $Call.ByID(918565934, table);
+    return $Call.ByID(1931031332, table);
 }
 
 export function Disconnect(connID: string): $CancellablePromise<void> {
-    return $Call.ByID(3910241401, connID);
+    return $Call.ByID(753429703, connID);
 }
 
 export function ExecuteQuery(queryInput: entities$0.QueryInput): $CancellablePromise<entities$0.QueryResult | null> {
-    return $Call.ByID(2057292634, queryInput);
+    return $Call.ByID(940505008, queryInput);
 }
 
 export function GetActiveConnection(): $CancellablePromise<string> {
-    return $Call.ByID(123274639);
+    return $Call.ByID(3424422817);
 }
 
 export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connection, boolean]> {
-    return $Call.ByID(1493165516);
+    return $Call.ByID(3293129022);
 }
 
 export function GetDDL(table: entities$0.TableRef): $CancellablePromise<string> {
-    return $Call.ByID(2116919059, table);
+    return $Call.ByID(1140029165, table);
 }
 
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {
-    return $Call.ByID(2140042053, limit, since);
+    return $Call.ByID(1944907923, limit, since);
 }
 
 export function InspectDatabase(): $CancellablePromise<entities$0.InspectTableInfo[] | null> {
-    return $Call.ByID(2574358800);
+    return $Call.ByID(4019461670);
 }
 
 /**
  * InspectTableColumns is read-only metadata, including for views and read-only connections.
  */
 export function InspectTableColumns(table: entities$0.TableRef): $CancellablePromise<entities$0.InspectColumnInfo[] | null> {
-    return $Call.ByID(206013314, table);
+    return $Call.ByID(866663916, table);
 }
 
 export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
-    return $Call.ByID(2383367173, config);
+    return $Call.ByID(1404477927, config);
 }
 
 export function PingConnection(connID: string): $CancellablePromise<boolean> {
-    return $Call.ByID(1640356639, connID);
+    return $Call.ByID(105455865, connID);
 }
 
 export function SaveAndConnect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
-    return $Call.ByID(2635117723, config);
+    return $Call.ByID(238343449, config);
 }
 
 export function SaveTableChanges(input: entities$0.TableChanges): $CancellablePromise<entities$0.TableSaveResult | null> {
-    return $Call.ByID(2824824671, input);
+    return $Call.ByID(1918929209, input);
 }
 
 export function TestSSHConnection(config: entities$0.SSHConfig): $CancellablePromise<boolean> {
-    return $Call.ByID(465824935, config);
+    return $Call.ByID(210397393, config);
 }

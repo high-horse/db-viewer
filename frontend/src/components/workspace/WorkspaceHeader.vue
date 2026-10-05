@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { DbService } from "@bindings/db-viewer/internal/app";
+import { DbService } from "@bindings/db-lens/internal/app";
 
 const connectionStore = useConnectionStore();
 const connected = ref(false);

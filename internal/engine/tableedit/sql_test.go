@@ -5,7 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

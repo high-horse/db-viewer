@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func TestReadPagesCountJumpAndGlobalSort(t *testing.T) {

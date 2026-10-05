@@ -2,28 +2,28 @@ package postgres
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/metadata"
-	pgxInspector "db-viewer/internal/engine/metadata/postgres"
-	queryParaser "db-viewer/internal/engine/parser"
-	pgxQueryParser "db-viewer/internal/engine/parser/postgres"
-	queryexecutor "db-viewer/internal/engine/queryExecutor"
-	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
-	"db-viewer/internal/engine/transports"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/metadata"
+	pgxInspector "db-lens/internal/engine/metadata/postgres"
+	queryParaser "db-lens/internal/engine/parser"
+	pgxQueryParser "db-lens/internal/engine/parser/postgres"
+	queryexecutor "db-lens/internal/engine/queryExecutor"
+	"db-lens/internal/engine/queryExecutor/sqlExecutor"
+	"db-lens/internal/engine/transports"
 )
 
-type Driver struct{
+type Driver struct {
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
-	parser  queryParaser.Parser
+	parser    queryParaser.Parser
 }
 
 func NewDriver() *Driver {
 	return &Driver{
 		executor:  sqlExecutor.New(),
 		inspector: pgxInspector.NewInspector(),
-		parser: pgxQueryParser.NewParser(),
+		parser:    pgxQueryParser.NewParser(),
 	}
 }
 
@@ -48,4 +48,3 @@ func (d *Driver) Inspector() metadata.Inspector {
 func (d *Driver) Parser() queryParaser.Parser {
 	return d.parser
 }
-

@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
-import { DbService } from '@bindings/db-viewer/internal/app';
+import { DbService } from '@bindings/db-lens/internal/app';
 import { useTableEditsStore } from '@/stores/tableEditsStore';
 
 const props = defineProps<{ tableTabId?: string }>();
