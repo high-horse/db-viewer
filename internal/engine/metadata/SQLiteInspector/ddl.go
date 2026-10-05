@@ -2,8 +2,8 @@ package sqliteinspector
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
 	"fmt"
 	"strings"
 )

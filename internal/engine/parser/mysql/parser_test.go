@@ -3,7 +3,7 @@ package mysqlQueryParser
 import (
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func TestMySQLParser(t *testing.T) {

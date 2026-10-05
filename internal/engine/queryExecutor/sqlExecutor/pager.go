@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 const CursorLifetime = 10 * time.Minute

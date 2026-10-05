@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
 )
 
 func editService(t *testing.T) (*DbService, entities.TableRef, manager.SQLConnection) {

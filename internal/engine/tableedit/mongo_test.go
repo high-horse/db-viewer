@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

@@ -3,7 +3,7 @@ package pgxQueryParser
 import (
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func TestPostgresParser(t *testing.T) {

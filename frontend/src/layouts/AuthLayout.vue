@@ -99,7 +99,7 @@ import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useActiveConnection } from "@/stores/activeConnection";
-import type { Connection } from "@bindings/db-viewer/internal/types";
+import type { Connection } from "@bindings/db-lens/internal/types";
 
 const $router = useRouter();
 const drawerOpen = ref(false);

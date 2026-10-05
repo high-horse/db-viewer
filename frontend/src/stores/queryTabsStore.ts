@@ -4,9 +4,9 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import type { QueryTab, QueryResult } from "@/types/queryTab";
-import { DbService } from "@bindings/db-viewer/internal/app";
-import { QueryExecutionType } from "@bindings/db-viewer/internal/engine/entities";
-import type { QueryResult as BackendResult } from "@bindings/db-viewer/internal/engine/entities";
+import { DbService } from "@bindings/db-lens/internal/app";
+import { QueryExecutionType } from "@bindings/db-lens/internal/engine/entities";
+import type { QueryResult as BackendResult } from "@bindings/db-lens/internal/engine/entities";
 
 const initialTab: QueryTab = {
   id: "query-1",

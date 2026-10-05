@@ -2,12 +2,12 @@ package mongodb
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/metadata"
-	parser "db-viewer/internal/engine/parser"
-	executor "db-viewer/internal/engine/queryExecutor"
-	"db-viewer/internal/engine/transports"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/metadata"
+	parser "db-lens/internal/engine/parser"
+	executor "db-lens/internal/engine/queryExecutor"
+	"db-lens/internal/engine/transports"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"

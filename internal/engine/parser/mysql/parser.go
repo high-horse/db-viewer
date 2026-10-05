@@ -1,8 +1,8 @@
 package mysqlQueryParser
 
 import (
-	"db-viewer/internal/engine/entities"
-	queryParaser "db-viewer/internal/engine/parser"
+	"db-lens/internal/engine/entities"
+	queryParaser "db-lens/internal/engine/parser"
 )
 
 type Parser struct{}

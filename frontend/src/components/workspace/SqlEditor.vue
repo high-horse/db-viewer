@@ -19,7 +19,7 @@ import { nord } from "@fsegurai/codemirror-theme-nord";
 import { materialDark } from "@fsegurai/codemirror-theme-material-dark";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable } from "@/utils/sqlCompletion";
-import type { InspectTableInfo } from "@bindings/db-viewer/internal/engine/entities";
+import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { acceptCompletion, autocompletion, type CompletionContext } from "@codemirror/autocomplete";
 

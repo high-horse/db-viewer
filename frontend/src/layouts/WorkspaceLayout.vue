@@ -209,7 +209,7 @@ import { useRouter } from "vue-router";
 
 import { Dialog } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
-import { DbService } from "@bindings/db-viewer/internal/app";
+import { DbService } from "@bindings/db-lens/internal/app";
 
 
 

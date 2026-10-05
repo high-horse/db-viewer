@@ -1,7 +1,7 @@
 package queryParaser
 
 import (
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 	"fmt"
 	"regexp"
 	"strings"

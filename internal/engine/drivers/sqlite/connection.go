@@ -3,12 +3,13 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/transports"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/transports"
 	"fmt"
 	"log"
 	"net/url"
-	_"modernc.org/sqlite"
+
+	_ "modernc.org/sqlite"
 )
 
 type Connection struct {

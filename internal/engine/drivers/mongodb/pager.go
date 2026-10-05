@@ -3,15 +3,16 @@ package mongodb
 import (
 	"context"
 	"crypto/rand"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"sync"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const cursorLifetime = 10 * time.Minute

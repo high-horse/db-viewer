@@ -2,14 +2,13 @@ package drivers
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/metadata"
-	queryParaser "db-viewer/internal/engine/parser"
-	queryexecutor "db-viewer/internal/engine/queryExecutor"
-	"db-viewer/internal/engine/transports"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/metadata"
+	queryParaser "db-lens/internal/engine/parser"
+	queryexecutor "db-lens/internal/engine/queryExecutor"
+	"db-lens/internal/engine/transports"
 )
-
 
 type Driver interface {
 	Name() string

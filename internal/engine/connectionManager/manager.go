@@ -3,7 +3,7 @@ package manager
 import (
 	"context"
 	"database/sql"
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
@@ -12,7 +12,7 @@ import (
 
 type Manager interface {
 	Add(Connection) error
-	Get(id string)(Connection, bool)
+	Get(id string) (Connection, bool)
 	Remove(id string) error
 	List() []Connection
 	CloseAll() error
@@ -20,7 +20,7 @@ type Manager interface {
 
 type Connection interface {
 	ID() string
-	
+
 	Name() string
 	Type() string
 	DatabaseName() string
@@ -46,14 +46,13 @@ type NoSQLConnection interface {
 }
 
 type RedisConnection interface {
-    Connection
+	Connection
 
-    Client() *redis.Client
+	Client() *redis.Client
 }
 
-
 type ConnectionManager struct {
-	rw sync.RWMutex
+	rw          sync.RWMutex
 	connections map[string]Connection
 	activeID    string
 }
@@ -64,8 +63,7 @@ func NewConnectionManager() *ConnectionManager {
 	}
 }
 
-
-func(m *ConnectionManager) Add(conn Connection) error {
+func (m *ConnectionManager) Add(conn Connection) error {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -84,8 +82,7 @@ func(m *ConnectionManager) Add(conn Connection) error {
 	return nil
 }
 
-
-func(m *ConnectionManager)Get(id string)(Connection, bool) {
+func (m *ConnectionManager) Get(id string) (Connection, bool) {
 	m.rw.RLock()
 	defer m.rw.RUnlock()
 
@@ -93,7 +90,7 @@ func(m *ConnectionManager)Get(id string)(Connection, bool) {
 	return conn, ok
 }
 
-func (m *ConnectionManager)Remove(id string) error{
+func (m *ConnectionManager) Remove(id string) error {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -103,7 +100,7 @@ func (m *ConnectionManager)Remove(id string) error{
 	}
 
 	if err := conn.Disconnect(); err != nil {
-		return  err
+		return err
 	}
 
 	delete(m.connections, id)
@@ -135,7 +132,7 @@ func (m *ConnectionManager) CloseAll() error {
 		delete(m.connections, id)
 	}
 
-	return  nil
+	return nil
 }
 
 func (m *ConnectionManager) SetActive(id string) error {

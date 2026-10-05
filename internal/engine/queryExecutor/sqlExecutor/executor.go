@@ -8,9 +8,9 @@ import (
 
 	"fmt"
 
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/queryExecutor/detector"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/queryExecutor/detector"
 )
 
 type Executor struct{}

@@ -3,7 +3,7 @@ package sqliteQueryParser
 import (
 	"testing"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 func TestSQLiteParser(t *testing.T) {

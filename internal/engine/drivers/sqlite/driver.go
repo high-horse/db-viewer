@@ -2,29 +2,29 @@ package sqlite
 
 import (
 	"context"
-	manager "db-viewer/internal/engine/connectionManager"
-	"db-viewer/internal/engine/entities"
-	"db-viewer/internal/engine/metadata"
-	sqliteinspector "db-viewer/internal/engine/metadata/SQLiteInspector"
-	queryParaser "db-viewer/internal/engine/parser"
-	sqliteQueryParser "db-viewer/internal/engine/parser/sqlite"
+	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/entities"
+	"db-lens/internal/engine/metadata"
+	sqliteinspector "db-lens/internal/engine/metadata/SQLiteInspector"
+	queryParaser "db-lens/internal/engine/parser"
+	sqliteQueryParser "db-lens/internal/engine/parser/sqlite"
 
-	queryexecutor "db-viewer/internal/engine/queryExecutor"
-	"db-viewer/internal/engine/queryExecutor/sqlExecutor"
-	"db-viewer/internal/engine/transports"
+	queryexecutor "db-lens/internal/engine/queryExecutor"
+	"db-lens/internal/engine/queryExecutor/sqlExecutor"
+	"db-lens/internal/engine/transports"
 )
 
-type Driver struct{
+type Driver struct {
 	executor  queryexecutor.Executor
 	inspector metadata.Inspector
-	parser queryParaser.Parser
+	parser    queryParaser.Parser
 }
 
 func NewDriver() *Driver {
 	return &Driver{
-		executor: sqlExecutor.New(),
+		executor:  sqlExecutor.New(),
 		inspector: sqliteinspector.NewInspector(),
-		parser: sqliteQueryParser.NewParser(),
+		parser:    sqliteQueryParser.NewParser(),
 	}
 }
 

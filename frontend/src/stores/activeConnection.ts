@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { DbService } from "@bindings/db-viewer/internal/app";
+import { DbService } from "@bindings/db-lens/internal/app";
 import { Notify } from "quasar";
 
 export const useActiveConnection = defineStore("activeConnection", () => {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 )
 
 // PageableSQL accepts a single SELECT or read-only CTE shape. Commands, locking

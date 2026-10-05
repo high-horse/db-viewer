@@ -2,7 +2,7 @@ package transports
 
 import (
 	"context"
-	"db-viewer/internal/engine/entities"
+	"db-lens/internal/engine/entities"
 	"fmt"
 	"io"
 	"net"
