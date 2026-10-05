@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/pganalyze/pg_query_go/v5 v5.0.0
+	github.com/pganalyze/pg_query_go/v5 v5.1.0
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
 	go.mongodb.org/mongo-driver v1.17.9
