@@ -7,12 +7,19 @@
             horizontal
             class="h-full flex-1 min-w-0 tabs-scroll-area"
         >
-            <div class="tabs-content h-full flex items-center">
+            <div class="tabs-content h-full flex items-center" @dragover="dragOverStrip" @drop.prevent="dropTab" @dragleave="leaveStrip">
                 <!-- Tabs -->
                 <div
                     v-for="tab in tabs"
                     :key="tab.id"
-                    class="h-full shrink-0 flex items-center border-r border-[#292521]"
+                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[#292521]"
+                    :data-tab-id="tab.id"
+                    draggable="true"
+                    @dragstart="startDrag($event, tab.id)"
+                    @dragend="endDrag"
+                    @dragover.prevent="dragOverTab($event, tab.id)"
+                    :style="{ opacity: draggedTabId === tab.id ? 0.45 : undefined }"
+                    :data-drop-side="dropTarget?.id === tab.id ? dropTarget.side : undefined"
                     :class="
                         tab.id === activeTabId
                             ? 'bg-[#0c0b09]'
@@ -79,6 +86,8 @@
                         size="xs"
                         icon="close"
                         class="tab-close"
+                        @pointerdown.stop
+                        @dragstart.stop.prevent
                         :class="
                             tab.id === activeTabId
                                 ? 'text-[#6b7280]'
@@ -112,11 +121,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 const edits = useTableEditsStore();
 import type { QueryTab } from "@/types/queryTab";
 
-defineProps<{
+const props = defineProps<{
     tabs: QueryTab[];
     activeTabId: string | null;
 }>();
@@ -125,7 +135,62 @@ const emit = defineEmits<{
     createTab: [];
     selectTab: [id: string];
     closeTab: [id: string];
+    moveTab: [id: string, targetId: string, side: "before" | "after"];
 }>();
+
+const draggedTabId = ref<string | null>(null);
+const dropTarget = ref<{ id: string; side: "before" | "after" } | null>(null);
+
+function startDrag(event: DragEvent, id: string) {
+    if (!event.dataTransfer) return;
+    draggedTabId.value = id;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+    selectTab(id);
+}
+
+function dragOverTab(event: DragEvent, id: string) {
+    if (!draggedTabId.value) return;
+    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    dropTarget.value = id === draggedTabId.value ? null : {
+        id, side: event.clientX < bounds.left + bounds.width / 2 ? "before" : "after",
+    };
+}
+
+function dragOverStrip(event: DragEvent) {
+    if (!draggedTabId.value) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    const strip = event.currentTarget as HTMLElement;
+    if (!(event.target as HTMLElement).closest("[data-tab-id]")) {
+        const last = props.tabs.at(-1);
+        dropTarget.value = last && last.id !== draggedTabId.value ? { id: last.id, side: "after" } : null;
+    }
+    const scroller = strip.closest(".q-scrollarea__container");
+    if (scroller) {
+        const bounds = scroller.getBoundingClientRect();
+        if (event.clientX < bounds.left + 36) scroller.scrollLeft -= 24;
+        else if (event.clientX > bounds.right - 36) scroller.scrollLeft += 24;
+    }
+}
+
+function dropTab() {
+    if (draggedTabId.value && dropTarget.value) {
+        emit("moveTab", draggedTabId.value, dropTarget.value.id, dropTarget.value.side);
+    }
+    endDrag();
+}
+
+function leaveStrip(event: DragEvent) {
+    if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) {
+        dropTarget.value = null;
+    }
+}
+
+function endDrag() {
+    draggedTabId.value = null;
+    dropTarget.value = null;
+}
 
 function createTab() {
     emit("createTab");
@@ -141,6 +206,24 @@ function closeTab(id: string) {
 </script>
 
 <style scoped>
+.workspace-tab {
+    position: relative;
+    cursor: grab;
+    user-select: none;
+}
+.workspace-tab[data-drop-side]::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: 2px;
+    background: #f59e0b;
+    z-index: 1;
+    pointer-events: none;
+}
+.workspace-tab[data-drop-side="before"]::after { left: 0; }
+.workspace-tab[data-drop-side="after"]::after { right: 0; }
+
 .tabs-scroll-area {
     min-width: 0;
     min-height: 0;

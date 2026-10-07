@@ -12,7 +12,8 @@ import { linter, type Diagnostic } from "@codemirror/lint";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
 import { nord } from "@fsegurai/codemirror-theme-nord";
@@ -186,7 +187,9 @@ onMounted(() => {
             materialDark, // oneDark, // nord,
             // Basic editing
             //
-            keymap.of([{ key: "Tab", run: acceptCompletion }, ...defaultKeymap, indentWithTab]),
+            search({ top: true }),
+            history(),
+            keymap.of([{ key: "Tab", run: acceptCompletion }, ...historyKeymap, ...searchKeymap, ...defaultKeymap, indentWithTab]),
             EditorView.lineWrapping,
             // Custom styling
             EditorView.theme({

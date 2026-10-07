@@ -29,6 +29,7 @@
                             @create-tab="queryTabsStore.createTab()"
                             @select-tab="queryTabsStore.selectTab"
                             @close-tab="queryTabsStore.closeTab"
+                            @move-tab="queryTabsStore.moveTab"
                         />
 
                         <!-- ACTIVE TAB CONTENT -->
@@ -40,11 +41,12 @@
                                 "
                             >
                                 <q-splitter
-                                    v-if="showResults"
                                     v-model="editorHeight"
                                     horizontal
                                     :limits="[20, 80]"
                                     class="h-full min-w-0 min-h-0"
+                                    :class="{ 'results-collapsed': !showResults }"
+                                    :disable="!showResults"
                                 >
                                     <!-- QUERY EDITOR -->
                                     <template #before>
@@ -105,18 +107,6 @@
                                     </template>
                                 </q-splitter>
 
-                                <!-- QUERY WITHOUT RESULTS -->
-                                <div
-                                    v-else
-                                    class="h-full w-full min-w-0 min-h-0 overflow-hidden"
-                                >
-                                    <QueryConsole
-                                        :active-tab="queryTabsStore.activeTab"
-                                        :on-execute="executeQuery"
-                                        @create-tab="queryTabsStore.createTab()"
-                                        @update-sql="queryTabsStore.updateSql"
-                                    />
-                                </div>
                             </template>
 
                             <!-- ================= RESULT TAB ================= -->
@@ -399,6 +389,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.results-collapsed > :deep(.q-splitter__before) {
+    height: 100% !important;
+}
+
+.results-collapsed > :deep(.q-splitter__after),
+.results-collapsed > :deep(.q-splitter__separator) {
+    display: none;
+}
+
 :deep(.q-splitter) {
     min-width: 0;
     min-height: 0;

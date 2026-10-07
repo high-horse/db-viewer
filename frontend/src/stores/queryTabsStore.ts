@@ -93,6 +93,15 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTabId.value = id;
   }
 
+  function moveTab(id: string, targetId: string, side: "before" | "after") {
+    if (id === targetId) return;
+    const from = tabs.value.findIndex(tab => tab.id === id);
+    if (from < 0 || !tabs.value.some(tab => tab.id === targetId)) return;
+    const [tab] = tabs.value.splice(from, 1);
+    const target = tabs.value.findIndex(tab => tab.id === targetId);
+    tabs.value.splice(target + (side === "after" ? 1 : 0), 0, tab);
+  }
+
   function closeTab(id: string, discard = false) {
     const edits = useTableEditsStore();
     if (edits.isSaving(id)) return;
@@ -353,6 +362,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     createTab,
     createResultTab,
     selectTab,
+    moveTab,
     closeTab,
     updateSql,
     setResult,
